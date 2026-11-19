@@ -105,7 +105,7 @@ function Forecasting() {
                 <dt className="text-muted">In {fc.horizon} min</dt><dd className="tabular font-semibold">{fmtInt(fc.predicted_end)} ({fc.predicted_end_pct}%)</dd>
                 <dt className="text-muted">Change</dt><dd className="tabular">{fc.delta_vs_current > 0 ? '+' : ''}{fmtInt(fc.delta_vs_current)}</dd>
                 <dt className="text-muted">Band at horizon</dt><dd className="tabular">{fmtInt(fc.lower.at(-1))}–{fmtInt(fc.upper.at(-1))}</dd>
-                <dt className="text-muted">Reaches capacity</dt><dd className="tabular">{fc.minutes_to_capacity ? `in ~${fc.minutes_to_capacity} min` : 'not within horizon'}</dd>
+                <dt className="text-muted">Reaches capacity</dt><dd className="tabular">{fc.current_pct >= 100 ? 'already above safe capacity' : fc.minutes_to_capacity ? `in ~${fc.minutes_to_capacity} min` : 'not within horizon'}</dd>
                 <dt className="text-muted">Possible breach (upper band)</dt><dd className="tabular">{fc.minutes_to_possible_breach ? `in ~${fc.minutes_to_possible_breach} min` : 'no'}</dd>
                 <dt className="text-muted">P(exceed) at horizon</dt><dd className="tabular">{fc.p_exceed_at_horizon} <span className="text-muted">heuristic</span></dd>
                 <dt className="text-muted">Method</dt><dd>{fc.method} ({fc.history_points} pts)</dd>
@@ -143,7 +143,7 @@ function Forecasting() {
                     <td className="tabular px-2 py-1.5">{f.available ? `${f.current_pct}%` : '—'}</td>
                     <td className="tabular px-2 py-1.5">{f.available ? `${f.predicted_end_pct}%` : '—'}</td>
                     <td className="tabular px-2 py-1.5">{f.available ? `${f.peak_pct}%` : '—'}</td>
-                    <td className="tabular px-2 py-1.5">{f.minutes_to_capacity ? `${f.minutes_to_capacity} min` : '—'}</td>
+                    <td className="tabular px-2 py-1.5">{f.available && f.current_pct >= 100 ? 'already above' : f.minutes_to_capacity ? `${f.minutes_to_capacity} min` : '—'}</td>
                     <td className="tabular px-2 py-1.5">{f.minutes_to_possible_breach ? `${f.minutes_to_possible_breach} min` : '—'}</td>
                     <td className="tabular px-2 py-1.5">{f.available ? f.p_exceed_at_horizon : '—'}</td>
                     <td className="px-2 py-1.5 text-muted">{f.method}</td>

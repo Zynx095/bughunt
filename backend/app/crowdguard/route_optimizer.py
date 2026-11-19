@@ -71,6 +71,8 @@ class RouteOptimizer:
             zv = self._zone(state, v)
             if v != source and self._unsafe(zv):
                 return None  # hard rule: never route through or into an overcrowded zone
+            if v != source and self.venue.nodes[v].get("zone_kind") == "queue":
+                return None  # never send moving crowds through a service queue
             dens = [x.get("density_ppm2") for x in (self._zone(state, u), zv) if x and x.get("density_ppm2") is not None]
             speed = walking_speed(max(dens)) if dens else FREE_SPEED_MPS
             t = d["length_m"] / max(speed or FREE_SPEED_MPS, 0.15)

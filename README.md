@@ -1,3 +1,26 @@
+# CROWDGUARD — Crowd Safety Monitoring at Public Events (on OMNIFORGE)
+
+CROWDGUARD estimates how many people are in each zone of a venue, flags overcrowding and fast build-up early, forecasts capacity
+breaches, and recommends safer crowd movement with an explanation for each route. It runs on the OMNIFORGE framework described below: the six
+engines and nine original adapters are unchanged, and CROWDGUARD adds a seventh `crowd` engine, a tenth `crowd_safety` adapter and an
+eight-screen event-safety command centre.
+
+* Architecture: [`docs/CROWDGUARD_ARCHITECTURE.md`](docs/CROWDGUARD_ARCHITECTURE.md)
+* Two-minute pitch: [`docs/CROWDGUARD_PITCH.md`](docs/CROWDGUARD_PITCH.md)
+* Test results: [`docs/CROWDGUARD_TEST_RESULTS.md`](docs/CROWDGUARD_TEST_RESULTS.md)
+
+```bash
+cd frontend && npm install && npm run build
+cd ../backend && python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --port 8000          # open http://127.0.0.1:8000  →  Command Centre
+```
+
+Video analysis needs `opencv-python`, plus `ultralytics` with a **local** YOLO weights file (set `CROWDGUARD_YOLO_WEIGHTS`, or place
+`yolov8n.pt` in `backend/models/`). Without the weights it falls back to OpenCV HOG and says so. The simulation, alerts, forecasting and routing need neither.
+The demo data is **synthetic** and labelled on every screen. CROWDGUARD does not certify event safety: organisers make every decision.
+
+---
+
 # OMNIFORGE — Universal Adaptive Intelligence Framework
 
 OMNIFORGE is a reusable foundation for turning a problem statement into a working AI-powered prototype quickly.

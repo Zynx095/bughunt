@@ -140,7 +140,7 @@ export function GlobalHeader({
             )}
           />
           <Cpu className="size-3.5 text-muted hidden sm:inline" />
-          <span className="font-medium hidden sm:inline">6 Engines</span>
+          <span className="font-medium hidden sm:inline">{health?.engines ? Object.keys(health.engines).length : 0} Engines</span>
           <span className="text-[10px] text-muted">({health?.status ?? 'ok'})</span>
         </button>
 

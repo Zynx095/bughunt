@@ -40,7 +40,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl border border-line bg-surface">
-      {label && <span className="absolute left-3 top-2 z-10 rounded-md border border-line bg-surface/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</span>}
+      {label && <div className="border-b border-line px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</div>}
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img"
         aria-label="Venue map showing zones, occupancy, flows, exits and routes">
         <defs>
@@ -82,16 +82,14 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
           )
         })}
 
-        {/* Zones */}
+        {/* Zone areas */}
         {venue.zones.map((z) => {
           const r = readings?.[z.id]
           const band = r?.band ?? 'unknown'
           const live = r && r.feed_status === 'ok'
           const colour = BAND_COLOR[band] ?? BAND_COLOR.unknown
           const pts = z.polygon.map((p) => p.join(',')).join(' ')
-          const [cx, cy] = z.centroid
           const isSel = selected === z.id
-          const small = z.area_m2 < 900 || compact
           return (
             <g key={z.id} onClick={onSelect ? () => onSelect(z.id) : undefined} className={onSelect ? 'cursor-pointer' : undefined}>
               <title>{`${z.name}: ${r?.estimate != null ? `${fmtInt(r.estimate)} (${fmtInt(r.lower)}–${fmtInt(r.upper)}) of ${fmtInt(z.safe_capacity)}` : 'no data'} · ${BAND_LABEL[band]} · feed ${r?.feed_status ?? 'none'}`}</title>
@@ -99,22 +97,6 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
                 className={band === 'critical' ? 'cg-pulse' : undefined} />
               {!live && <polygon points={pts} fill="url(#cg-hatch)" />}
               {isSel && <polygon points={pts} fill="none" stroke="var(--color-ink)" strokeWidth={1.5} strokeDasharray="4 4" />}
-              <text x={cx} y={cy - (small ? 14 : 26)} textAnchor="middle" fontSize={small ? 11 : 13} fontWeight="600" fill="var(--color-ink)">{z.name}</text>
-              {r?.estimate != null ? (
-                <>
-                  <text x={cx} y={cy + (small ? 4 : 2)} textAnchor="middle" fontSize={small ? 17 : 24} fontWeight="700" fill="var(--color-ink)" className="tabular">
-                    {r.occupancy_pct?.toFixed(0)}%
-                  </text>
-                  <text x={cx} y={cy + (small ? 18 : 22)} textAnchor="middle" fontSize={small ? 9.5 : 11} fill="var(--color-ink-2)" className="tabular">
-                    {fmtInt(r.estimate)} / {fmtInt(z.safe_capacity)}
-                  </text>
-                </>
-              ) : (
-                <text x={cx} y={cy + 4} textAnchor="middle" fontSize={small ? 11 : 13} fontWeight="700" fill="var(--color-ink-2)">NO DATA</text>
-              )}
-              <text x={cx} y={cy + (small ? 31 : 40)} textAnchor="middle" fontSize={small ? 9 : 10.5} fontWeight="700" fill={colour} letterSpacing="0.06em">
-                {BAND_MARK[band]} {live ? BAND_LABEL[band].toUpperCase() : r?.carried_forward ? `STALE FEED · ${Math.round(r.age_s ?? 0)} s` : r?.feed_status === 'detector_error' ? 'DETECTION FAILED' : 'NO LIVE FEED'}
-              </text>
             </g>
           )
         })}
@@ -150,7 +132,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
           <g>
             <polyline points={routePts(route)} fill="none" stroke="#0ea5e9" strokeOpacity={0.25} strokeWidth={14} strokeLinejoin="round" strokeLinecap="round" />
             <polyline points={routePts(route)} fill="none" stroke="#0ea5e9" strokeWidth={5} strokeDasharray="12 7" strokeLinejoin="round" strokeLinecap="round" className="cg-flow" />
-            {pos[route.path[0]] && <circle cx={pos[route.path[0]][0]} cy={pos[route.path[0]][1]} r={9} fill="#0ea5e9" stroke="white" strokeWidth={2} />}
+            {pos[route.path[0]] && <circle cx={pos[route.path[0]][0]} cy={pos[route.path[0]][1]} r={6} fill="#0ea5e9" stroke="white" strokeWidth={2} />}
             {pos[route.destination] && (
               <g>
                 <circle cx={pos[route.destination][0]} cy={pos[route.destination][1]} r={11} fill="white" stroke="#0ea5e9" strokeWidth={4} />
@@ -159,6 +141,36 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
             )}
           </g>
         )}
+
+        {/* Zone labels (on top, with halo) */}
+        {venue.zones.map((z) => {
+          const r = readings?.[z.id]
+          const band = r?.band ?? 'unknown'
+          const live = r && r.feed_status === 'ok'
+          const colour = BAND_COLOR[band] ?? BAND_COLOR.unknown
+          const [cx, cy] = z.centroid
+          const small = z.area_m2 < 900 || compact
+          return (
+            <g key={z.id} pointerEvents="none" stroke="var(--color-surface)" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
+              <text x={cx} y={cy - (small ? 14 : 26)} textAnchor="middle" fontSize={small ? 11 : 13} fontWeight="600" fill="var(--color-ink)">{z.name}</text>
+              {r?.estimate != null ? (
+                <>
+                  <text x={cx} y={cy + (small ? 4 : 2)} textAnchor="middle" fontSize={small ? 17 : 24} fontWeight="700" fill="var(--color-ink)" className="tabular">
+                    {r.occupancy_pct?.toFixed(0)}%
+                  </text>
+                  <text x={cx} y={cy + (small ? 18 : 22)} textAnchor="middle" fontSize={small ? 9.5 : 11} fill="var(--color-ink-2)" className="tabular">
+                    {fmtInt(r.estimate)} / {fmtInt(z.safe_capacity)}
+                  </text>
+                </>
+              ) : (
+                <text x={cx} y={cy + 4} textAnchor="middle" fontSize={small ? 11 : 13} fontWeight="700" fill="var(--color-ink-2)">NO DATA</text>
+              )}
+              <text x={cx} y={cy + (small ? 31 : 40)} textAnchor="middle" fontSize={small ? 9 : 10.5} fontWeight="700" fill={colour} letterSpacing="0.06em">
+                {BAND_MARK[band]} {live ? BAND_LABEL[band].toUpperCase() : r?.carried_forward ? `STALE FEED · ${Math.round(r.age_s ?? 0)} s` : r?.feed_status === 'detector_error' ? 'DETECTION FAILED' : 'NO LIVE FEED'}
+              </text>
+            </g>
+          )
+        })}
 
         {/* Junctions, gates, exits */}
         {venue.nodes.filter((n) => n.kind !== 'zone').map((n) => {

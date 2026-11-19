@@ -10,8 +10,10 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.api.crowdguard import router as crowd_router
 from app.api.routes import router
 from app.config import Settings, get_settings
 from app.services import build_services
@@ -32,7 +34,8 @@ def create_app(settings: Settings | None = None, serve_frontend: bool = True) ->
         app.state.services.store.engine.dispose()
 
     app = FastAPI(title=f"{settings.app_name} API", version=settings.version, lifespan=lifespan,
-                  description="Universal adaptive intelligence framework: engines, domain adapters and pipelines.")
+                  description="CROWDGUARD crowd-safety monitoring on the OMNIFORGE framework: engines, domain adapters and pipelines.")
+    app.add_middleware(GZipMiddleware, minimum_size=2048)  # simulation timelines are large JSON
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list, allow_credentials=False,
                        allow_methods=["GET", "POST", "PUT"], allow_headers=["*"])
 
@@ -45,6 +48,7 @@ def create_app(settings: Settings | None = None, serve_frontend: bool = True) ->
         return response
 
     app.include_router(router)
+    app.include_router(crowd_router)
     if serve_frontend and FRONTEND_DIST.is_dir():
         app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
     return app

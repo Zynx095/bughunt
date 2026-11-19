@@ -134,3 +134,23 @@ class RagChunk(Base):
     text: Mapped[str] = mapped_column(Text)
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[str] = mapped_column(String(40), default=utcnow_iso)
+
+
+class CrowdIncident(Base):
+    """CROWDGUARD incident with a hash-chained event timeline and a sealed evidence snapshot."""
+
+    __tablename__ = "crowd_incidents"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    title: Mapped[str] = mapped_column(String(255))
+    zone_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    severity: Mapped[str] = mapped_column(String(16), default="medium")
+    status: Mapped[str] = mapped_column(String(16), default="detected", index=True)
+    source: Mapped[str] = mapped_column(String(16), default="live")
+    alert_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    evidence_hash: Mapped[str] = mapped_column(String(64))
+    events: Mapped[list] = mapped_column(JSON, default=list)
+    sealed_root: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(128), default="anonymous")
+    created_at: Mapped[str] = mapped_column(String(40), default=utcnow_iso, index=True)
+    updated_at: Mapped[str] = mapped_column(String(40), default=utcnow_iso)

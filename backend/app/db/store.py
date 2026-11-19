@@ -17,6 +17,7 @@ from .models import (
     Approval,
     AuditEvent,
     Base,
+    CrowdIncident,
     Dataset,
     Document,
     ExecutionRecord,
@@ -306,6 +307,36 @@ class Store:
             ).all()
             return [{"collection": c, "chunks": n, "documents": d} for c, n, d in rows]
 
+    # ---- crowd incidents (CROWDGUARD) -----------------------------------
+    def add_incident(self, **fields: Any) -> dict[str, Any]:
+        with self.session() as s:
+            row = CrowdIncident(**fields)
+            s.add(row)
+            s.flush()
+            return _row(row)
+
+    def get_incident(self, incident_id: str) -> dict[str, Any] | None:
+        with self.session() as s:
+            row = s.get(CrowdIncident, incident_id)
+            return _row(row) if row else None
+
+    def update_incident(self, incident_id: str, **fields: Any) -> dict[str, Any] | None:
+        with self.session() as s:
+            row = s.get(CrowdIncident, incident_id)
+            if not row:
+                return None
+            for k, v in fields.items():
+                setattr(row, k, v)
+            s.flush()
+            return _row(row)
+
+    def list_incidents(self, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        with self.session() as s:
+            q = select(CrowdIncident).order_by(CrowdIncident.created_at.desc()).limit(limit)
+            if status:
+                q = q.where(CrowdIncident.status == status)
+            return [_row(r) for r in s.execute(q).scalars()]
+
     # ---- overview -------------------------------------------------------
     def counts(self) -> dict[str, int]:
         with self.session() as s:
@@ -325,5 +356,7 @@ class Store:
                 "audit_events": count(AuditEvent),
                 "pending_approvals": count(Approval, Approval.status == "pending"),
                 "security_events": count(AuditEvent, AuditEvent.category == "security"),
+                "crowd_incidents": count(CrowdIncident),
+                "open_crowd_incidents": count(CrowdIncident, CrowdIncident.status.not_in(["resolved", "closed"])),
             }
 

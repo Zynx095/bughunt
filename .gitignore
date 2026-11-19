@@ -21,3 +21,7 @@ frontend/*.tsbuildinfo
 Thumbs.db
 .vscode/
 .idea/
+
+# CROWDGUARD: local model weights are never committed
+backend/models/
+*.pt

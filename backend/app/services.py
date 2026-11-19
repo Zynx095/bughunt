@@ -8,6 +8,7 @@ from app.core.contracts import EngineResponse, ExecutionContext
 from app.core.registry import EngineRegistry
 from app.db.store import Store
 from app.engines.ai.engine import AIEngine
+from app.engines.crowd.engine import CrowdEngine
 from app.engines.crypto.engine import CryptoEngine
 from app.engines.crypto.keystore import LocalKeyStore, load_kek
 from app.engines.data.engine import DataEngine
@@ -37,6 +38,7 @@ def build_services(settings: Settings) -> Services:
     registry.register(CryptoEngine(LocalKeyStore(store, kek, kek_source), store, kek_source))
     registry.register(DataEngine(store))
     registry.register(DecisionEngine(store))
+    registry.register(CrowdEngine(store, settings))  # CROWDGUARD domain engine; reuses the six above via the registry
     registry.add_observer(_recorder(store))
     registry.initialise_all()
     return Services(settings=settings, store=store, registry=registry)

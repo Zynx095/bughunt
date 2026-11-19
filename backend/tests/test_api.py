@@ -10,7 +10,8 @@ DOMAINS = [d.id for d in all_domains()]
 def test_health_and_engines(client):
     h = client.get("/api/health").json()
     assert h["status"] == "ok" and h["database"] == "ok"
-    assert set(h["engines"]) == {"security", "ai", "ml", "crypto", "data", "decision"}
+    # The six OMNIFORGE engines are preserved; CROWDGUARD adds the crowd domain engine.
+    assert set(h["engines"]) == {"security", "ai", "ml", "crypto", "data", "decision", "crowd"}
     engines = client.get("/api/engines").json()
     assert all(op["input_schema"] for e in engines for op in e["operations"])
 

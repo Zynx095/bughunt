@@ -23,7 +23,7 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    app_name: str = "OMNIFORGE"
+    app_name: str = "CROWDGUARD · OMNIFORGE"
     version: str = "0.1.0"
 
     # Storage
@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     openai_base_url: str = Field(default="https://api.openai.com/v1", alias="OPENAI_BASE_URL")
     openai_model: str | None = Field(default=None, alias="OPENAI_MODEL")
     ai_timeout_s: float = Field(default=30.0, alias="AI_TIMEOUT_S")
+
+    # CROWDGUARD: person detector weights (never downloaded) and video upload limit.
+    crowd_yolo_weights: str | None = Field(default=None, alias="CROWDGUARD_YOLO_WEIGHTS")
+    crowd_detector: str = Field(default="auto", alias="CROWDGUARD_DETECTOR")  # auto | yolo | hog
+    crowd_max_video_mb: int = Field(default=100, alias="CROWDGUARD_MAX_VIDEO_MB")
 
     # Default (simulated) identity used when a request carries no role header.
     default_role: str = Field(default="analyst", alias="OMNIFORGE_DEFAULT_ROLE")
@@ -80,6 +85,8 @@ class Settings(BaseSettings):
             "max_upload_mb": self.max_upload_mb,
             "master_key_source": "environment" if self.master_key else "local dev key file",
             "default_role": self.default_role,
+            "crowd_detector_preference": self.crowd_detector,
+            "crowd_max_video_mb": self.crowd_max_video_mb,
         }
 
 

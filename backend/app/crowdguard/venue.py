@@ -1,4 +1,6 @@
-"""Venue model: zones, junctions, gates and exits as a weighted NetworkX graph."""
+"""Venue model: zones, junctions, gates and exits as a weighted NetworkX graph.
+Also exports VenueDigitalTwin and VenueDigitalTwinModel for 2D visual digital twin rendering.
+"""
 from __future__ import annotations
 
 import json
@@ -9,6 +11,7 @@ from typing import Any
 import networkx as nx
 
 from .density_estimator import DEFAULT_THRESHOLDS
+from .digital_twin import Obstacle, Portal, VenueDigitalTwin, VenueDigitalTwinModel
 from .zone_manager import ZoneManager
 
 SAMPLE_VENUE = Path(__file__).resolve().parent.parent.parent / "sample_data" / "crowdguard_venue.json"
@@ -94,3 +97,14 @@ def load_venue(cfg: dict[str, Any] | None = None) -> Venue:
 
 def sample_venue_config() -> dict[str, Any]:
     return json.loads(_sample_cfg_text())
+
+
+__all__ = [
+    "Venue",
+    "load_venue",
+    "sample_venue_config",
+    "VenueDigitalTwin",
+    "VenueDigitalTwinModel",
+    "Portal",
+    "Obstacle",
+]

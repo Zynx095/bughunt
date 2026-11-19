@@ -1,8 +1,23 @@
-"""CROWDGUARD Virtual Crowd Intelligence Engine (VCIE) & Crowd Safety Monitoring Services.
+"""CROWDGUARD: crowd safety monitoring services and the Virtual Crowd Intelligence Engine (VCIE).
 
-Transforms conventional oblique camera video into virtual top-down bird's-eye crowd intelligence
-maps with Gaussian kernel density estimation, movement vector tracking, and digital twin analytics.
-Also provides core venue models and crowd safety services.
+One analysis chain, one implementation per stage:
+
+  camera / video / simulation
+    -> calibration.py        four-point homography (camera <-> bird's-eye ground plane)
+    -> crowd_detection.py    the only person detector (local YOLO, labelled OpenCV-HOG fallback)
+       detection.py          projects detections onto the calibrated ground plane
+    -> crowd_tracking.py     image-space identity (ByteTrack, IoU fallback)
+       tracking.py           ground-plane Kalman kinematics (position, velocity, m/s)
+    -> density.py            Gaussian KDE density map + bird's-eye zone metrics
+       density_estimator.py  zone occupancy estimate with uncertainty, bands, data quality
+    -> zone_manager.py       polygon zones and counting
+    -> crowd_flow.py / movement.py   flow statistics and movement vectors
+    -> congestion_detector.py rule-based alerts (decision engine)
+    -> crowd_forecaster.py   short-horizon forecasting (+ ml engine)
+    -> route_optimizer.py    safety-weighted routing (NetworkX)
+    -> safety_recommendations.py advisory actions for human organisers
+  pipeline.py / media_analysis.py orchestrate the vision chain; simulation.py / synthetic.py are the
+  deterministic synthetic sources (always labelled synthetic).
 
 Safety position (applies to every module):
   * Counts are estimates, never ground truth. Occlusion and tracking errors are modelled explicitly.
@@ -10,69 +25,3 @@ Safety position (applies to every module):
   * Outputs are advisory. Human organisers make every intervention decision.
   * No software recommendation may close or restrict an emergency exit.
 """
-from __future__ import annotations
-
-# VCIE Computer Vision Modules
-from .calibration import CameraCalibrationEngine
-from .density import VirtualCrowdDensityEngine
-from .detection import PersonDetectionEngine
-from .digital_twin import Obstacle, Portal, VenueDigitalTwin, VenueDigitalTwinModel
-from .movement import MovementIntelligenceEngine
-from .perspective import BirdEyeViewGenerator
-from .pipeline import VirtualCrowdIntelligencePipeline
-from .schemas import (
-    AnalysisJobSummary,
-    BoundingBox,
-    CalibrationConfig,
-    CalibrationPoint,
-    CalibrationQuad,
-    CalibrationResult,
-    CongestionAlert,
-    DensityRiskLevel,
-    FrameAnalysisResult,
-    HeatmapMode,
-    MovementVector,
-    TrackedPerson,
-    TrackPoint,
-    VideoProcessingConfig,
-    ZoneDefinition,
-    ZoneMetric,
-)
-from .synthetic import SyntheticDemonstrationEngine
-from .venue import Venue, load_venue, sample_venue_config
-
-__version__ = "1.0.0"
-__all__ = [
-    # VCIE exports
-    "CameraCalibrationEngine",
-    "BirdEyeViewGenerator",
-    "PersonDetectionEngine",
-    "VirtualCrowdDensityEngine",
-    "MovementIntelligenceEngine",
-    "VirtualCrowdIntelligencePipeline",
-    "VenueDigitalTwin",
-    "VenueDigitalTwinModel",
-    "Portal",
-    "Obstacle",
-    "SyntheticDemonstrationEngine",
-    "CalibrationConfig",
-    "CalibrationPoint",
-    "CalibrationQuad",
-    "CalibrationResult",
-    "BoundingBox",
-    "TrackedPerson",
-    "TrackPoint",
-    "HeatmapMode",
-    "DensityRiskLevel",
-    "ZoneDefinition",
-    "ZoneMetric",
-    "CongestionAlert",
-    "MovementVector",
-    "FrameAnalysisResult",
-    "VideoProcessingConfig",
-    "AnalysisJobSummary",
-    # Core Venue exports
-    "Venue",
-    "load_venue",
-    "sample_venue_config",
-]

@@ -104,7 +104,27 @@ class MediaInput(BaseModel):
     coverage: float | None = Field(None, gt=0, le=1, description="Fraction of the venue zone the camera sees")
     max_seconds: float = Field(30, gt=0, le=120)
     target_fps: float = Field(5, gt=0, le=15)
+    heatmap_mode: Literal["gaussian", "point", "zone", "movement"] = "gaussian"
+    sigma: float = Field(28.0, ge=5, le=80)
     job_id: str | None = None
+
+
+class VisionStepInput(BaseModel):
+    scenario: Literal["plaza_normal", "bottleneck", "counterflow", "surge_gate"] = "plaza_normal"
+    mode: Literal["gaussian", "point", "zone", "movement"] = "gaussian"
+    sigma: float = Field(28.0, ge=5, le=80)
+    steps: int = Field(1, ge=1, le=10, description="Simulation steps to advance before rendering")
+    include_views: bool = True
+    reset: bool = False
+
+
+class CalibrationInput(BaseModel):
+    source_points: dict[str, dict[str, float]]
+    target_width_px: int = Field(800, ge=100, le=4096)
+    target_height_px: int = Field(600, ge=100, le=4096)
+    ground_width_meters: float = Field(24.0, gt=0.1, le=1000)
+    ground_height_meters: float = Field(18.0, gt=0.1, le=1000)
+    venue_name: str = Field("Operator calibrated area", max_length=120)
 
 
 class ExplainInput(BaseModel):
@@ -160,6 +180,11 @@ class CrowdEngine(BaseEngine):
         self.planner = RouteOptimizer(self.venue)
         self._sim_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._sim_lock = threading.Lock()
+        # VCIE state: the live synthetic pipeline and the operator calibration used for new video jobs.
+        self._vision = None
+        self._vision_lock = threading.Lock()
+        self.vision_calibration = None
+        self.vision_calibration_source = "default"
 
     # ---- helpers -------------------------------------------------------------
     def health(self) -> dict[str, Any]:
@@ -361,15 +386,16 @@ class CrowdEngine(BaseEngine):
         path = Path(doc["storage_path"])
         if not path.is_file():
             raise EngineError("FILE_MISSING", "Stored media file is missing", 410)
-        det, det_status = get_detector(getattr(self.settings, "crowd_detector", "auto"), getattr(self.settings, "crowd_yolo_weights", None))
-
         def progress(done: int, total: int) -> None:
             if data.job_id:
                 MEDIA_PROGRESS.setdefault(data.job_id, {}).update(done=done, total=total)
 
+        calib = self.vision_calibration if self.vision_calibration_source == "operator" else None
         try:
-            res = analyse_media(path, doc["kind"], layout, det, det_status, max_seconds=data.max_seconds,
-                                target_fps=data.target_fps, thresholds=self.venue.thresholds, progress=progress)
+            res = analyse_media(path, doc["kind"], layout, calibration=calib,
+                                calibration_source="operator calibrated" if calib else "default preset",
+                                max_seconds=data.max_seconds, target_fps=data.target_fps, thresholds=self.venue.thresholds,
+                                heatmap_mode=data.heatmap_mode, sigma=data.sigma, progress=progress)
         except ValueError as exc:
             raise EngineError("INVALID_LAYOUT", str(exc), 422) from exc
         if not res.get("ok"):
@@ -394,7 +420,8 @@ class CrowdEngine(BaseEngine):
                 v["coverage"] = 1.0
         res["venue_observations"] = list(venue_obs.values())
         return OpResult(result=res, warnings=res["warnings"][:10],
-                        confidence=None, metadata={"detector": det_status.get("backend"), "tracker": res["tracker"].get("tracker")})
+                        confidence=None, metadata={"detector": res["detector"].get("backend"), "tracker": res["tracker"].get("tracker"),
+                                                   "source_kind": res["source_kind"]})
 
     @operation("explain", ExplainInput, description="Plain-language situation briefing via the AI engine (LLM or labelled local fallback)")
     def op_explain(self, data: ExplainInput, ctx: ExecutionContext) -> OpResult:
@@ -420,6 +447,83 @@ class CrowdEngine(BaseEngine):
             raise EngineError("EXPLAIN_FAILED", resp.error.message if resp.error else "explanation failed", resp._status)
         return OpResult(result={"explanation": resp.result["explanation"], "context": context}, warnings=resp.warnings,
                         metadata={k: resp.metadata.get(k) for k in ("provider", "model", "fallback", "fallback_reason")})
+
+    # ---- Virtual Crowd Intelligence Engine (VCIE) -----------------------------
+    def vision_pipeline(self):
+        """The live synthetic VCIE pipeline (created lazily, shared, guarded by its own lock)."""
+        with self._vision_lock:
+            if self._vision is None:
+                from app.crowdguard.pipeline import VirtualCrowdIntelligencePipeline  # noqa: PLC0415
+
+                self._vision = VirtualCrowdIntelligencePipeline(self.vision_calibration, identity_tracking=False)
+                self._vision.step_synthetic(scenario="plaza_normal")
+            return self._vision
+
+    @operation("vision_presets", EmptyInput, description="VCIE calibration preset, digital-twin venue, synthetic scenarios and heatmap modes")
+    def op_vision_presets(self, data: EmptyInput, ctx: ExecutionContext) -> OpResult:
+        from app.crowdguard.calibration import CameraCalibrationEngine  # noqa: PLC0415
+        from app.crowdguard.schemas import HeatmapMode  # noqa: PLC0415
+
+        p = self.vision_pipeline()
+        return OpResult(result={
+            "calibration": p.calibration.config.model_dump(mode="json"),
+            "calibration_result": p.calibration.result.model_dump(mode="json") if p.calibration.result else None,
+            "calibration_source": self.vision_calibration_source,
+            "default_calibration": CameraCalibrationEngine.get_default_calibration().model_dump(mode="json"),
+            "venue": p.venue.model.model_dump(mode="json"),
+            "scenarios": [
+                {"id": "plaza_normal", "name": "Plaza multi-directional flow", "description": "35 synthetic pedestrians crossing an open concourse."},
+                {"id": "bottleneck", "name": "Corridor bottleneck", "description": "45 synthetic pedestrians funnelling through a narrow exit."},
+                {"id": "counterflow", "name": "Opposing streams", "description": "Two synthetic groups meeting head-on (counter-flow)."},
+                {"id": "surge_gate", "name": "Ingress gate surge", "description": "60 synthetic pedestrians converging on the north gate."},
+            ],
+            "heatmap_modes": [m.value for m in HeatmapMode],
+            "detector": p.detector.describe(),
+        })
+
+    @operation("vision_calibrate", CalibrationInput, access="write", description="Validate a four-point ground-plane homography and use it for the VCIE")
+    def op_vision_calibrate(self, data: CalibrationInput, ctx: ExecutionContext) -> OpResult:
+        from app.crowdguard.schemas import CalibrationConfig  # noqa: PLC0415
+
+        try:
+            cfg = CalibrationConfig.model_validate(data.model_dump())
+        except Exception as exc:  # noqa: BLE001
+            raise EngineError("INVALID_CALIBRATION", f"Calibration points are malformed: {exc}", 422) from exc
+        p = self.vision_pipeline()
+        with p.lock:
+            result = p.calibration.calibrate(cfg)
+            if not result.valid:
+                raise EngineError("INVALID_CALIBRATION", result.message, 422, details={"warnings": result.warnings})
+            for eng in (p.perspective, p.detector, p.tracker, p.density_engine, p.movement_engine, p.synthetic_engine):
+                eng.calib = p.calibration
+            p.tracker.tracks.clear()
+        self.vision_calibration = cfg
+        self.vision_calibration_source = "operator"
+        return OpResult(result=result.model_dump(mode="json"), warnings=result.warnings,
+                        metadata={"applies_to": "live synthetic view and video jobs started after this call"})
+
+    @operation("vision_step", VisionStepInput, description="Advance the synthetic VCIE scenario and return telemetry with five synchronised views")
+    def op_vision_step(self, data: VisionStepInput, ctx: ExecutionContext) -> OpResult:
+        from app.crowdguard.schemas import HeatmapMode  # noqa: PLC0415
+
+        p = self.vision_pipeline()
+        with p.lock:
+            p.config.heatmap_mode = HeatmapMode(data.mode)
+            p.config.kde_bandwidth_sigma = data.sigma
+            if data.reset or p.synthetic_engine.scenario_name != data.scenario:
+                p.synthetic_engine._init_scenario(data.scenario)
+                p.tracker.tracks.clear()
+            res = None
+            for _ in range(data.steps):
+                res = p.step_synthetic(scenario=data.scenario)
+            payload = res.model_dump(mode="json")
+            for t in payload["tracks"]:
+                t["history"] = t["history"][-12:]  # bounded payload
+            views = p.render_bundle(max_width=560) if data.include_views else None
+        return OpResult(result={"telemetry": payload, "views": views, "scenario": data.scenario,
+                                "label": "SYNTHETIC: simulated pedestrians with ground-truth boxes (no camera, no detector)",
+                                "calibration_source": self.vision_calibration_source, "fps": p.fps},
+                        warnings=["Synthetic VCIE scenario: not camera data."])
 
     # ---- incidents -------------------------------------------------------------
     def _need_store(self):

@@ -10,7 +10,6 @@ import math
 import cv2
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
 
 from app.crowdguard.calibration import CameraCalibrationEngine, is_convex_quad, order_points_clockwise
 from app.crowdguard.density import VirtualCrowdDensityEngine
@@ -29,7 +28,6 @@ from app.crowdguard.schemas import (
 )
 from app.crowdguard.synthetic import SyntheticDemonstrationEngine
 from app.crowdguard.venue import VenueDigitalTwin
-from app.main import app
 
 
 # ---------------------------------------------------------
@@ -281,16 +279,15 @@ def test_movement_vector_and_bottleneck_detection():
 # 6. FastAPI REST Endpoints Tests
 # ---------------------------------------------------------
 
-@pytest.fixture
-def client():
-    return TestClient(app)
+# The `client` fixture comes from conftest.py: an isolated app with a temporary database and no LLM keys.
+# These routes now run through the crowd engine, so responses use the standard OMNIFORGE envelope.
 
 
 def test_api_crowdguard_presets(client):
     """Tests GET /api/crowdguard/presets."""
     response = client.get("/api/crowdguard/presets")
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["result"]
     assert "calibration" in data
     assert "venue" in data
     assert "scenarios" in data
@@ -313,7 +310,7 @@ def test_api_crowdguard_calibration_endpoint(client):
     }
     response = client.post("/api/crowdguard/calibration", json=payload)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["result"]
     assert data["valid"] is True
     assert data["target_width_px"] == 800
     assert data["homography_matrix"] is not None
@@ -323,9 +320,12 @@ def test_api_crowdguard_simulation_step_and_images(client):
     """Tests stepping simulation and retrieving image streams."""
     step_resp = client.post("/api/crowdguard/simulation/step?scenario=bottleneck&mode=gaussian")
     assert step_resp.status_code == 200
-    step_data = step_resp.json()
-    assert step_data["is_synthetic"] is True
+    step_body = step_resp.json()["result"]
+    step_data = step_body["telemetry"]
+    assert step_data["is_synthetic"] is True and step_data["source_kind"] == "synthetic"
     assert step_data["active_tracks_count"] > 0
+    # All five views of the same frame come back together (synchronised side-by-side display).
+    assert all(step_body["views"][v].startswith("data:image/jpeg;base64,") for v in ("camera", "birdseye", "heatmap", "movement", "digital_twin"))
 
     # Test camera frame endpoint
     cam_resp = client.get("/api/crowdguard/analysis/live/frame")
@@ -349,3 +349,92 @@ def test_api_crowdguard_simulation_step_and_images(client):
     t_data = tracks_resp.json()
     assert "tracks" in t_data
     assert "movement_vectors" in t_data
+
+
+# ---------------------------------------------------------
+# 7. Integration: one analysis chain shared by CROWDGUARD and the VCIE
+# ---------------------------------------------------------
+
+def test_vcie_uses_the_single_offline_detector():
+    """The VCIE detection adapter reuses crowd_detection's cached detector; nothing is downloaded."""
+    import os
+
+    from app.crowdguard.crowd_detection import get_detector
+
+    calib = CameraCalibrationEngine(CameraCalibrationEngine.get_default_calibration())
+    eng = PersonDetectionEngine(calib)
+    shared, status = get_detector(os.getenv("CROWDGUARD_DETECTOR", "auto"))
+    assert eng._detector is shared and eng.backend == status["backend"]
+    if eng.backend == "yolo":
+        assert os.environ.get("YOLO_OFFLINE") == "true" and eng.use_fallback is False
+    assert eng.backend in ("yolo", "hog", "none")
+
+
+def test_detection_failure_is_not_an_empty_scene():
+    pipeline = VirtualCrowdIntelligencePipeline(identity_tracking=False)
+    pipeline.detector._detector = None  # simulate a broken detector
+    pipeline.detector.status = {"reason": "simulated outage"}
+    res = pipeline.process_frame(np.zeros((720, 1280, 3), dtype=np.uint8), frame_idx=0, timestamp_s=0.0, render=False)
+    assert res.detection_failed is True and res.source_kind == "recorded_video"
+
+
+def test_bytetrack_identity_drives_ground_plane_tracks():
+    """Real footage: identities come from ByteTrack (image space); the ground-plane tracker keeps those ids."""
+    pipeline = VirtualCrowdIntelligencePipeline(identity_tracking=True)
+    calib = pipeline.calibration
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+    boxes = [BoundingBox(x1=600 + 4 * f, y1=420, x2=640 + 4 * f, y2=600, confidence=0.9) for f in range(6)]
+    ids_seen = set()
+    for f, box in enumerate(boxes):
+        pipeline.detector.detect = lambda *_a, _b=box, **_k: [_b]  # deterministic detections
+        res = pipeline.process_frame(frame, frame_idx=f, timestamp_s=f * 0.2, render=False)
+        ids_seen |= {t.track_id for t in res.tracks}
+        assert res.detection_failed is False
+    assert len(ids_seen) == 1, "one person moving across frames must keep one id"
+    assert calib.is_valid and res.tracks[0].speed_mps > 0
+
+
+def test_zone_risk_uses_shared_occupancy_thresholds():
+    calib = CameraCalibrationEngine(CameraCalibrationEngine.get_default_calibration())
+    engine = VirtualCrowdDensityEngine(calibration=calib)
+    zone = ZoneDefinition(id="z", name="Z", polygon=[(0, 0), (800, 0), (800, 600), (0, 600)], capacity=10, area_sq_meters=1000.0)
+    tracks = [TrackedPerson(track_id=i, camera_bbox=BoundingBox(x1=0, y1=0, x2=1, y2=1, confidence=0.9),
+                            camera_ground_point=(0, 0), birdseye_point=(100 + i, 100)) for i in range(9)]
+    metric = engine.evaluate_zones(tracks, [zone])[0]
+    assert metric.occupancy_pct == 90.0 and metric.risk_level.value == "high"  # 85 % "high" band, same as density_estimator
+
+
+def test_api_operator_calibration_validation(client):
+    bad = {"source_points": {k: {"x": 10.0 * i, "y": 10.0 * i} for i, k in enumerate(("top_left", "top_right", "bottom_right", "bottom_left"))}}
+    r = client.post("/api/crowdguard/calibration", json=bad)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "INVALID_CALIBRATION"
+    viewer = client.post("/api/crowdguard/calibration", json=bad, headers={"X-Omniforge-Role": "viewer"})
+    assert viewer.status_code == 403  # calibration changes shared state: write permission required
+
+
+def test_api_removed_arbitrary_path_ingestion(client):
+    """The pre-integration endpoint accepted any server file path; ingestion is now upload-only and sniffed."""
+    r = client.post("/api/crowdguard/analysis/start", data={"video_path": "C:/Windows/win.ini"})
+    assert r.status_code in (404, 405)
+    r = client.post("/api/crowdguard/video/upload", files={"file": ("x.mp4", b"not a video", "video/mp4")})
+    assert r.status_code in (404, 405)
+
+
+def test_api_video_job_returns_synchronised_views(client):
+    import time
+
+    pytest.importorskip("ultralytics")
+    job = client.post("/api/crowdguard/media/sample", json={"layout": "default_two_zone"}).json()
+    deadline = time.time() + 180
+    while time.time() < deadline:
+        state = client.get(f"/api/crowdguard/media/jobs/{job['job_id']}").json()
+        if state["status"] in ("completed", "failed"):
+            break
+        time.sleep(0.5)
+    assert state["status"] == "completed", state
+    res = state["response"]["result"]
+    assert res["source_kind"] == "recorded_video" and res["calibration"]["source"].startswith("default")
+    kf = res["keyframes"][-1]
+    assert kf["views"]["frame_idx"] == kf["frame_index"]  # all views rendered from the same frame
+    assert all(kf["views"][v] for v in ("camera", "birdseye", "heatmap", "movement", "digital_twin"))
+    assert kf["telemetry"]["frame_idx"] == kf["frame_index"]

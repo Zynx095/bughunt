@@ -61,7 +61,7 @@ def candidate_weight_paths(configured: str | None = None) -> list[Path]:
     env = os.getenv("CROWDGUARD_YOLO_WEIGHTS")
     if env:
         paths.append(Path(env).expanduser())
-    for base in (BACKEND_ROOT / "models", Path.home()):
+    for base in (BACKEND_ROOT / "models", BACKEND_ROOT.parent, Path.home()):
         paths.extend(base / n for n in WEIGHT_NAMES)
     return list(dict.fromkeys(paths))
 

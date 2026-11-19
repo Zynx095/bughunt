@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from app.core.contracts import ExecutionContext
 from app.crowdguard.media_analysis import make_sample_clip, sniff_media
@@ -68,6 +68,67 @@ def forecast(payload: dict[str, Any] = Body(...), svc: Services = Depends(servic
 def explain(payload: dict[str, Any] = Body(default_factory=dict), svc: Services = Depends(services),
             ctx: ExecutionContext = Depends(context)):
     return _envelope(svc, ctx, "explain", payload)
+
+
+# ------------------------------------------------------------------ Virtual Crowd Intelligence Engine (VCIE)
+@router.get("/presets")
+def vision_presets(svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "vision_presets", {})
+
+
+@router.post("/calibration")
+def vision_calibration(payload: dict[str, Any] = Body(...), svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "vision_calibrate", payload)
+
+
+@router.post("/simulation/step")
+def vision_step(scenario: str = "plaza_normal", mode: str = "gaussian", sigma: float = 28.0, steps: int = 1, views: bool = True,
+                svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "vision_step", {"scenario": scenario, "mode": mode, "sigma": sigma, "steps": steps, "include_views": views})
+
+
+@router.post("/simulation/reset")
+def vision_reset(scenario: str = "plaza_normal", svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "vision_step", {"scenario": scenario, "reset": True})
+
+
+VIEW_ATTR = {"frame": "latest_camera_frame", "birdseye": "latest_birdseye_frame", "heatmap": "latest_heatmap_frame",
+             "movement": "latest_movement_frame", "digitaltwin": "latest_digital_twin_frame"}
+
+
+@router.get("/analysis/live/tracks")
+def vision_live_tracks(svc: Services = Depends(services)):
+    p = svc.registry.get("crowd").vision_pipeline()
+    with p.lock:
+        res = p.latest_result
+        if res is None:
+            raise HTTPException(404, "No frame processed yet")
+        return {"label": "SYNTHETIC", "frame_idx": res.frame_idx, "timestamp_s": res.timestamp_s,
+                "active_tracks_count": res.active_tracks_count,
+                "tracks": [t.model_dump(mode="json", exclude={"history"}) for t in res.tracks],
+                "movement_vectors": [v.model_dump(mode="json") for v in res.movement_vectors],
+                "zone_metrics": [z.model_dump(mode="json") for z in res.zone_metrics],
+                "peak_density_per_sq_meter": res.peak_density_per_sq_meter,
+                "alerts": [a.model_dump(mode="json") for a in res.alerts]}
+
+
+@router.get("/analysis/live/{view}")
+def vision_live_view(view: str, svc: Services = Depends(services)):
+    """Latest frame of the live synthetic VCIE view as JPEG (the step response also embeds all five views)."""
+    import cv2  # noqa: PLC0415
+
+    attr = VIEW_ATTR.get(view)
+    if attr is None:
+        raise HTTPException(404, f"Unknown view '{view}'. Views: {sorted(VIEW_ATTR)}")
+    p = svc.registry.get("crowd").vision_pipeline()
+    with p.lock:
+        img = getattr(p, attr)
+        if img is None:
+            raise HTTPException(404, "No frame rendered yet")
+        ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    if not ok:
+        raise HTTPException(500, "Failed to encode frame")
+    return Response(content=buf.tobytes(), media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
 # ------------------------------------------------------------------ incidents

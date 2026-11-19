@@ -179,6 +179,11 @@ class FrameAnalysisResult(BaseModel):
     processing_latency_ms: float
     is_fallback_detection: bool = False
     is_synthetic: bool = False
+    # Provenance: "synthetic" (simulated agents, ground-truth boxes) | "recorded_video" | "image" | "live_camera"
+    source_kind: str = "recorded_video"
+    detector_backend: str = "none"
+    detection_failed: bool = False
+    tracker: str = "ground-plane kalman"
 
 
 class VideoProcessingConfig(BaseModel):

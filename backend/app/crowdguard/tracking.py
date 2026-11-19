@@ -147,14 +147,19 @@ class MultiObjectTracker:
         detections: List[Tuple[BoundingBox, Tuple[float, float], Tuple[float, float]]],
         frame_idx: int,
         timestamp_s: float,
+        external_ids: Optional[List[int]] = None,
     ) -> List[TrackedPerson]:
         """Updates tracks with new detections from current frame.
-        
+
         Args:
             detections: List of (BoundingBox, camera_ground_pt, birdseye_pt)
             frame_idx: Current frame index
             timestamp_s: Video timestamp in seconds
-            
+            external_ids: Optional identity per detection from an image-space tracker (ByteTrack). When
+                given, identity comes from that tracker and this class only adds ground-plane kinematics
+                (Kalman-smoothed position, velocity, speed in m/s). Otherwise detections are associated by
+                ground-plane distance.
+
         Returns:
             List of confirmed TrackedPerson objects.
         """
@@ -162,7 +167,9 @@ class MultiObjectTracker:
         self._last_timestamp_s = timestamp_s
 
         # 1. Deduplicate raw detections in bird's-eye space (avoid duplicate boxes on same person)
-        unique_detections = self._deduplicate_detections(detections)
+        if external_ids is not None and len(external_ids) != len(detections):
+            raise ValueError("external_ids must match detections one-to-one")
+        unique_detections = detections if external_ids is not None else self._deduplicate_detections(detections)
 
         # 2. Kalman predict for all existing tracks
         for trk in self.tracks.values():
@@ -174,6 +181,17 @@ class MultiObjectTracker:
         track_ids = list(self.tracks.keys())
         assigned_det_indices = set()
         assigned_track_ids = set()
+
+        if external_ids is not None:
+            for j, (tid, det) in enumerate(zip(external_ids, unique_detections)):
+                box, cam_pt, be_pt = det
+                if tid in self.tracks:
+                    self._apply_match(self.tracks[tid], box, cam_pt, be_pt, frame_idx, timestamp_s)
+                else:
+                    self.tracks[tid] = TrackInternal(tid, box, cam_pt, be_pt, frame_idx, timestamp_s)
+                    self._next_id = max(self._next_id, tid + 1)
+                assigned_det_indices.add(j)
+            track_ids = []  # skip distance association
 
         if track_ids and unique_detections:
             # Build cost matrix
@@ -197,30 +215,7 @@ class MultiObjectTracker:
 
                     # Update track state with matched detection
                     box, cam_pt, be_pt = unique_detections[col]
-                    trk = self.tracks[tid]
-                    trk.kf.update(be_pt[0], be_pt[1])
-                    trk.camera_bbox = box
-                    trk.camera_ground_pt = cam_pt
-                    trk.birdseye_pt = be_pt
-                    trk.confidence = box.confidence
-                    trk.hits += 1
-                    trk.time_since_update = 0
-
-                    # Calculate instantaneous speed
-                    speed_mps = self._calculate_speed_mps(trk)
-                    trk.history.append(
-                        TrackPoint(
-                            frame_idx=frame_idx,
-                            timestamp_s=timestamp_s,
-                            camera_x=cam_pt[0],
-                            camera_y=cam_pt[1],
-                            birdseye_x=be_pt[0],
-                            birdseye_y=be_pt[1],
-                            speed_mps=speed_mps,
-                        )
-                    )
-                    if len(trk.history) > self.max_history_length:
-                        trk.history.pop(0)
+                    self._apply_match(self.tracks[tid], box, cam_pt, be_pt, frame_idx, timestamp_s)
 
                 # Mask out this row and column
                 cost_matrix[row, :] = np.inf
@@ -281,6 +276,21 @@ class MultiObjectTracker:
                 )
 
         return active_list
+
+    def _apply_match(self, trk: TrackInternal, box: BoundingBox, cam_pt: Tuple[float, float],
+                     be_pt: Tuple[float, float], frame_idx: int, timestamp_s: float) -> None:
+        trk.kf.update(be_pt[0], be_pt[1])
+        trk.camera_bbox = box
+        trk.camera_ground_pt = cam_pt
+        trk.birdseye_pt = be_pt
+        trk.confidence = box.confidence
+        trk.hits += 1
+        trk.time_since_update = 0
+        trk.history.append(TrackPoint(frame_idx=frame_idx, timestamp_s=timestamp_s, camera_x=cam_pt[0], camera_y=cam_pt[1],
+                                      birdseye_x=be_pt[0], birdseye_y=be_pt[1], speed_mps=0.0))
+        trk.history[-1].speed_mps = self._calculate_speed_mps(trk)
+        if len(trk.history) > self.max_history_length:  # bounded history (memory)
+            trk.history.pop(0)
 
     def _deduplicate_detections(
         self,

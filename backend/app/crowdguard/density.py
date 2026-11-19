@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 
 from .calibration import CameraCalibrationEngine
+from .density_estimator import DEFAULT_THRESHOLDS, occupancy_band
 from .schemas import (
     DensityRiskLevel,
     HeatmapMode,
@@ -144,14 +145,16 @@ class VirtualCrowdDensityEngine:
             density = pop / area_m2
             avg_speed = (sum(t.speed_mps for t in in_zone_tracks) / pop) if pop > 0 else 0.0
 
-            # Determine risk level
-            if density >= zone.risk_threshold_critical or occupancy_pct >= 100.0:
+            # Determine risk level. Occupancy bands come from the single CROWDGUARD threshold source
+            # (density_estimator); density limits are the zone's own configurable values.
+            band = occupancy_band(occupancy_pct, None, DEFAULT_THRESHOLDS)
+            if density >= zone.risk_threshold_critical or band == "critical":
                 risk = DensityRiskLevel.CRITICAL
                 status_msg = f"CRITICAL: Overcrowding in {zone.name} ({pop}/{capacity} pers, {density:.1f} p/m²)"
-            elif density >= zone.risk_threshold_high or occupancy_pct >= 75.0:
+            elif density >= zone.risk_threshold_high or band == "high":
                 risk = DensityRiskLevel.HIGH
                 status_msg = f"HIGH DENSITY: Congestion building in {zone.name} ({density:.1f} p/m²)"
-            elif density >= 0.5 or occupancy_pct >= 40.0:
+            elif density >= 0.5 or band == "elevated":
                 risk = DensityRiskLevel.MODERATE
                 status_msg = f"MODERATE: Normal active movement in {zone.name}"
             else:

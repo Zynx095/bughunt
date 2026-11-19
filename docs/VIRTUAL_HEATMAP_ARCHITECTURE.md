@@ -1,6 +1,23 @@
 # CROWDGUARD — VIRTUAL CROWD INTELLIGENCE ENGINE (VCIE)
 ## Virtual Bird's-Eye Crowd Density, Movement Intelligence & Digital Twin Architecture
 
+> **Integration note (integration/omniforge-final).** The mathematics, components and operator guide below still
+> apply. The integration changed the implementation in these ways (details in `CROWDGUARD_ARCHITECTURE.md`):
+>
+> * **Detection** uses the single CROWDGUARD detector (`crowd_detection.py`). YOLO weights are loaded only from a local file
+>   (never downloaded); the fallback is OpenCV HOG and is labelled as such. The earlier contour-based fallback was removed.
+> * **Identity** for real footage comes from ByteTrack in image space. `tracking.py` keeps those ids and adds ground-plane
+>   Kalman kinematics. Synthetic scenarios still use ground-plane distance association.
+> * **Ingestion** is upload-only (`POST /api/crowdguard/media`, magic-byte sniffing, size cap, SHA-256 storage, audit). The former
+>   `/video/upload` and `/analysis/start` endpoints were removed: the latter accepted an arbitrary server file path. Recorded video now runs
+>   through this pipeline as a background job that returns five synchronised views per key frame.
+> * **API (§4)**: every route runs through the `crowd` engine, so policy, validation and audit apply and responses use the OMNIFORGE envelope
+>   (`{success, result, warnings, …}`). Calibration is a write operation. `POST /simulation/step` returns telemetry *and* all five views
+>   of the same frame. `GET /analysis/live/{frame|birdseye|heatmap|movement|digitaltwin|tracks}` serves the live synthetic pipeline only.
+> * **Zone risk bands** use the shared CROWDGUARD occupancy thresholds (70 / 85 / 100 %) plus each zone's density limits.
+> * The separate `crowdguard` domain adapter was removed. `crowd_safety` is the single CROWDGUARD adapter.
+
+
 ---
 
 ### Executive Summary

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { Badge, Button, Card, ErrorBox, PageHeader, Spinner, WarnBox } from '../../components/ui'
+import { useApp } from '../../context'
 import { get } from '../../lib/api'
 import { useDarkMode } from '../../lib/hooks'
 import { cgResult } from '../api'
@@ -28,7 +29,8 @@ interface MediaResult {
   observations: { camera_zone: string; venue_zone: string | null; observed_count: number | null; feed_status: string }[]
   venue_observations: { zone_id: string; observed_count: number; feed_status: string; coverage: number; detector_confidence: number | null; tracking_stability: number | null; source: string }[]
   totals: { series: { t: number; detections: number | null; tracked: number | null }[]; unique_people: number | null; transitions: Record<string, number>; frame_estimate: { estimate: number; lower: number; upper: number } }
-  flow: { unit: string; overall: MediaZone['flow']; direction_histogram: { direction: string; count: number }[] }
+  flow: { unit: string; overall: MediaZone['flow']; direction_histogram: { direction: string; count: number }[]; ground_plane?: { mean_speed: number | null; calibrated: boolean } }
+  source_kind: string
   keyframes: { t: number; frame_index: number; image: string; width: number; height: number; boxes: Box[] }[]
   trails: Record<string, [number, number][]>
   quality: Record<string, number | boolean | null>
@@ -164,7 +166,7 @@ export function LiveMonitoringPage() {
         )}
         {job?.status === 'failed' && <div className="mt-3"><ErrorBox>Analysis failed: {job.response?.error?.message ?? 'unknown error'}</ErrorBox></div>}
       </Card>
-      {result && <MediaResults result={result} provenance={job?.provenance?.label} />}
+      {result && job && <MediaResults result={result} provenance={job.provenance?.label} jobId={job.id} />}
     </div>
   )
 }
@@ -216,8 +218,9 @@ function KeyframeViewer({ result }: { result: MediaResult }) {
   )
 }
 
-function MediaResults({ result, provenance }: { result: MediaResult; provenance?: string }) {
+function MediaResults({ result, provenance, jobId }: { result: MediaResult; provenance?: string; jobId: string }) {
   const { venue } = useCrowd()
+  const { navigate } = useApp()
   const dark = useDarkMode()
   const [assess, setAssess] = useState<{ readings: Record<string, Reading>; alerts: Alert[]; recommendations: Recommendation[]; summary: Summary } | null>(null)
   const [assessErr, setAssessErr] = useState<string | null>(null)
@@ -248,7 +251,8 @@ function MediaResults({ result, provenance }: { result: MediaResult; provenance?
       {provenance && <WarnBox>{provenance}</WarnBox>}
       {result.warnings.length > 0 && <WarnBox><ul className="list-disc pl-4">{result.warnings.map((w) => <li key={w}>{w}</li>)}</ul></WarnBox>}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
-        <Card title={`Analysed ${result.kind}: ${result.document.filename}`} subtitle={`SHA-256 ${result.document.sha256.slice(0, 16)}… · ${q.frames_processed} frame(s) in ${result.elapsed_s} s`}>
+        <Card title={`Analysed ${result.kind}: ${result.document.filename}`} subtitle={`SHA-256 ${result.document.sha256.slice(0, 16)}… · ${q.frames_processed} frame(s) in ${result.elapsed_s} s`}
+          actions={result.kind === 'video' ? <Button size="sm" variant="primary" onClick={() => navigate('cg-heatmap', jobId)}>Open in Virtual Heatmap →</Button> : undefined}>
           <KeyframeViewer result={result} />
         </Card>
         <div className="space-y-3">
@@ -262,6 +266,8 @@ function MediaResults({ result, provenance }: { result: MediaResult; provenance?
               <dt className="text-muted">Unique people (tracks)</dt><dd className="tabular">{result.totals.unique_people ?? '—'}</dd>
               <dt className="text-muted">Track fragmentation</dt><dd className="tabular">{q.track_fragmentation ?? '—'}</dd>
               <dt className="text-muted">Processed rate</dt><dd className="tabular">{q.processed_fps ? `${q.processed_fps} fps` : 'single frame'}</dd>
+              <dt className="text-muted">Ground-plane speed</dt><dd className="tabular">{result.flow.ground_plane?.mean_speed ?? '—'} m/s {result.flow.ground_plane?.calibrated ? '' : '(default calibration)'}</dd>
+              <dt className="text-muted">Source</dt><dd>{result.source_kind === 'image' ? 'still image' : 'recorded video (not live)'}</dd>
               <dt className="text-muted">Whole-frame estimate</dt><dd className="tabular">{result.totals.frame_estimate.estimate} ({result.totals.frame_estimate.lower}–{result.totals.frame_estimate.upper})</dd>
             </dl>
           </Card>

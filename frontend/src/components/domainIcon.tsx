@@ -1,10 +1,10 @@
 import {
-  Accessibility, Boxes, Fingerprint, GraduationCap, HeartPulse, Landmark, Leaf, ShieldAlert, Siren, TrafficCone,
+  Accessibility, Boxes, Eye, Fingerprint, GraduationCap, HeartPulse, Landmark, Leaf, ShieldAlert, Siren, TrafficCone, Users,
   type LucideIcon,
 } from 'lucide-react'
 
 const ICONS: Record<string, LucideIcon> = {
-  ShieldAlert, Fingerprint, TrafficCone, HeartPulse, GraduationCap, Landmark, Siren, Leaf, Accessibility,
+  ShieldAlert, Fingerprint, TrafficCone, HeartPulse, GraduationCap, Landmark, Siren, Leaf, Accessibility, Users, Eye,
 }
 
 export function DomainIcon({ name, className = 'size-5' }: { name: string; className?: string }) {

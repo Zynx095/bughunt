@@ -3,8 +3,7 @@ import { useMemo } from 'react'
 
 import { ChartCard } from '../../components/charts'
 import { DataTable } from '../../components/table'
-import { Button, Card, PageHeader } from '../../components/ui'
-import { useApp } from '../../context'
+import { Card, PageHeader } from '../../components/ui'
 import type { ChartSpec } from '../../lib/types'
 import { fmtInt, useCrowd } from '../store'
 import { Kpi, SimGate, SyntheticBadge } from '../widgets'
@@ -15,7 +14,6 @@ export function CrowdAnalyticsPage() {
 
 function CrowdAnalytics() {
   const { venue, sim } = useCrowd()
-  const { navigate } = useApp()
   const charts = useMemo<ChartSpec[]>(() => {
     if (!sim || !venue) return []
     const cap = Object.fromEntries(venue.zones.map((z) => [z.id, z.safe_capacity]))
@@ -54,7 +52,7 @@ function CrowdAnalytics() {
     <div className="space-y-4">
       <PageHeader title="Crowd Analytics" icon={<BarChart3 className="mt-1 size-6 text-[var(--accent)]" />}
         description="Whole-scenario trends and honest evaluation: estimation error against the simulator's hidden truth, forecast error against a persistence baseline, and the effect of the organisers' intervention."
-        actions={<><SyntheticBadge /><Button size="sm" onClick={() => navigate('analytics')}>Platform telemetry →</Button></>} />
+        actions={<SyntheticBadge />} />
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Kpi label="Main Stage peak (estimate)" value={`${ev.main_stage_peak.pct}%`} sub={`${fmtInt(ev.main_stage_peak.estimate)} at ${ev.main_stage_peak.clock}`} tone="bad" />
         <Kpi label="Peak with no intervention" value={`${sim.counterfactual.peak_pct}%`} sub={`${fmtInt(sim.counterfactual.peak)} (counterfactual)`} tone="bad" />

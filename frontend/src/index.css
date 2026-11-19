@@ -1,73 +1,68 @@
 @import "tailwindcss";
 
-/* Design tokens. Utilities like bg-surface / text-ink read these variables,
-   so dark mode only has to redefine the variables. */
+/* `dark:` utilities follow the resolved theme class on <html> (set by the theme provider), not only the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. Utilities such as bg-surface / text-ink read these variables, so a theme only
+   redefines variables; components never hard-code surface colours. Light is the base. */
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", "Fira Code", Consolas, monospace;
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
 
-  --color-page: #f8f9fa;
-  --color-surface: #ffffff;
-  --color-surface-2: #f1f3f5;
-  --color-ink: #0d0f12;
-  --color-ink-2: #495057;
-  --color-muted: #6c757d;
-  --color-line: #e5e7eb;
-  --color-sidebar: #0f1115;
-  --color-sidebar-2: #181b21;
-  --color-sidebar-ink: #f1f3f5;
-  --color-sidebar-muted: #868e96;
+  /* Light: warm ivory neutrals, crisp ink, hairline borders */
+  --color-page: #f6f5f1;
+  --color-surface: #fffefb;
+  --color-surface-2: #f0eee8;
+  --color-ink: #16181d;
+  --color-ink-2: #474c56;
+  --color-muted: #767b86;
+  --color-line: #e2dfd6;
+  --color-sidebar: #efede7;
+  --color-sidebar-2: #e5e2da;
+  --color-sidebar-ink: #1b1d22;
+  --color-sidebar-muted: #6f7480;
+  --color-accent: #4f5bd5;
 
-  --color-good: #10b981;
-  --color-good-ink: #047857;
-  --color-warn: #f59e0b;
-  --color-warn-ink: #b45309;
-  --color-serious: #f97316;
-  --color-critical: #ef4444;
-  --color-critical-ink: #b91c1c;
+  --color-good: #12a36b;
+  --color-good-ink: #0b7350;
+  --color-warn: #e59a0b;
+  --color-warn-ink: #92590a;
+  --color-serious: #ea7a2c;
+  --color-critical: #dc3d3d;
+  --color-critical-ink: #b42424;
 }
 
-/* Dark mode tokens - applied via .dark class or dark system preference when not forced .light */
-:root.dark,
-html.dark {
-  --color-page: #09090b;
-  --color-surface: #111114;
-  --color-surface-2: #18181c;
-  --color-ink: #f4f4f6;
-  --color-ink-2: #a1a1aa;
-  --color-muted: #71717a;
-  --color-line: #222226;
-  --color-sidebar: #0a0b0e;
-  --color-sidebar-2: #14151a;
-  --color-sidebar-ink: #f4f4f6;
-  --color-sidebar-muted: #82848f;
-  --color-good-ink: #34d399;
-  --color-warn-ink: #fbbf24;
-  --color-critical-ink: #f87171;
+/* Dark: deep charcoal-navy, comfortable for control-room use */
+:root.dark {
+  --color-page: #0a0c11;
+  --color-surface: #10131a;
+  --color-surface-2: #161a23;
+  --color-ink: #e6e8ee;
+  --color-ink-2: #a8aebb;
+  --color-muted: #747c8c;
+  --color-line: #232937;
+  --color-sidebar: #0c0f15;
+  --color-sidebar-2: #171b25;
+  --color-sidebar-ink: #e6e8ee;
+  --color-sidebar-muted: #7d8494;
+  --color-accent: #7d87f0;
+
+  --color-good: #22c08a;
+  --color-good-ink: #4fd8a6;
+  --color-warn: #f2b13a;
+  --color-warn-ink: #f6c766;
+  --color-serious: #f59152;
+  --color-critical: #f05252;
+  --color-critical-ink: #ff8080;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not(.light),
-  html:not(.light) {
-    --color-page: #09090b;
-    --color-surface: #111114;
-    --color-surface-2: #18181c;
-    --color-ink: #f4f4f6;
-    --color-ink-2: #a1a1aa;
-    --color-muted: #71717a;
-    --color-line: #222226;
-    --color-sidebar: #0a0b0e;
-    --color-sidebar-2: #14151a;
-    --color-sidebar-ink: #f4f4f6;
-    --color-sidebar-muted: #82848f;
-    --color-good-ink: #34d399;
-    --color-warn-ink: #fbbf24;
-    --color-critical-ink: #f87171;
-  }
+:root {
+  --accent: var(--color-accent);
+  --ease-theme: cubic-bezier(0.2, 0.6, 0.2, 1);
+  color-scheme: light;
 }
-
-html {
-  color-scheme: light dark;
+:root.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -77,10 +72,32 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Smooth theme switch: the theme provider adds .theme-transition to <html> for ~300 ms while the
+   variables change, so surfaces, borders, text, inputs and SVG fills/strokes ease together without
+   permanent global transitions (which would slow every hover state). */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow, outline-color, text-decoration-color !important;
+  transition-duration: 260ms !important;
+  transition-timing-function: var(--ease-theme) !important;
+  transition-delay: 0s !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition: none !important;
+  }
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent, #3b82f6);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -88,10 +105,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Custom sleek scrollbar */
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Scrollbars follow the tokens */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -99,12 +120,15 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--color-line);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-muted);
+  background-clip: padding-box;
 }
 
-/* Recharts chrome follows the ink tokens */
+/* Recharts chrome follows the ink tokens in both themes */
 .recharts-cartesian-axis-tick-value {
   fill: var(--color-muted);
   font-size: 11px;
@@ -112,6 +136,15 @@ body {
 .recharts-legend-item-text {
   color: var(--color-ink-2) !important;
   font-size: 12px;
+}
+.recharts-default-tooltip {
+  background: var(--color-surface) !important;
+  border-color: var(--color-line) !important;
+  border-radius: 8px;
+}
+.recharts-tooltip-label,
+.recharts-tooltip-item {
+  color: var(--color-ink) !important;
 }
 
 /* CROWDGUARD map motion: flow direction and critical-zone pulse (disabled for reduced motion) */

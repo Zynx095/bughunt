@@ -22,6 +22,8 @@ Thumbs.db
 .vscode/
 .idea/
 
-# CROWDGUARD: local model weights are never committed
+# CROWDGUARD: model weights are not added to the repo (the root yolov8n.pt was committed earlier on the
+# VCIE branch and is kept so the demo works from a clone; Ultralytics weights are AGPL-3.0).
 backend/models/
 *.pt
+!/yolov8n.pt

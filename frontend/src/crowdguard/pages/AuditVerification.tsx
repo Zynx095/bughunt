@@ -2,7 +2,6 @@ import { CheckCircle2, CircleDashed, ShieldCheck, ShieldX, XCircle } from 'lucid
 import { useEffect, useState } from 'react'
 
 import { Badge, Button, Card, ErrorBox, PageHeader, Spinner } from '../../components/ui'
-import { useApp } from '../../context'
 import { get } from '../../lib/api'
 import { fmtTime, short } from '../../lib/format'
 import type { AuditEvent, ChainStatus } from '../../lib/types'
@@ -30,7 +29,6 @@ function Row({ ok, label, detail, partial }: { ok: boolean; label: string; detai
 }
 
 export function AuditVerificationPage() {
-  const { navigate } = useApp()
   const [status, setStatus] = useState<Status | null>(null)
   const [chain, setChain] = useState<ChainStatus | null>(null)
   const [events, setEvents] = useState<AuditEvent[]>([])
@@ -74,7 +72,7 @@ export function AuditVerificationPage() {
     <div className="space-y-4">
       <PageHeader title="Audit & Verification" icon={<ShieldCheck className="mt-1 size-6 text-[var(--accent)]" />}
         description="What is real, what is a fallback and what is synthetic — verified by the backend at request time — plus tamper-evidence for the audit log and incident records."
-        actions={<><Button size="sm" onClick={load}>Re-check</Button><Button size="sm" variant="ghost" onClick={() => navigate('audit')}>Full audit log →</Button></>} />
+        actions={<Button size="sm" onClick={load}>Re-check</Button>} />
       {err && <ErrorBox>{err}</ErrorBox>}
       {!status ? <Spinner label="Verifying capabilities (loads the detector once)" /> : (
         <div className="grid gap-4 lg:grid-cols-2">

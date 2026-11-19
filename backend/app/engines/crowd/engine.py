@@ -184,7 +184,7 @@ class CrowdEngine(BaseEngine):
         self._vision = None
         self._vision_lock = threading.Lock()
         self.vision_calibration = None
-        self.vision_calibration_source = "default"
+        self.vision_calibration_source = "default preset"
 
     # ---- helpers -------------------------------------------------------------
     def health(self) -> dict[str, Any]:
@@ -390,7 +390,7 @@ class CrowdEngine(BaseEngine):
             if data.job_id:
                 MEDIA_PROGRESS.setdefault(data.job_id, {}).update(done=done, total=total)
 
-        calib = self.vision_calibration if self.vision_calibration_source == "operator" else None
+        calib = self.vision_calibration if self.vision_calibration_source == "operator calibrated" else None
         try:
             res = analyse_media(path, doc["kind"], layout, calibration=calib,
                                 calibration_source="operator calibrated" if calib else "default preset",
@@ -498,7 +498,7 @@ class CrowdEngine(BaseEngine):
                 eng.calib = p.calibration
             p.tracker.tracks.clear()
         self.vision_calibration = cfg
-        self.vision_calibration_source = "operator"
+        self.vision_calibration_source = "operator calibrated"
         return OpResult(result=result.model_dump(mode="json"), warnings=result.warnings,
                         metadata={"applies_to": "live synthetic view and video jobs started after this call"})
 

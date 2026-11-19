@@ -1,6 +1,8 @@
 # CROWDGUARD — Architecture
 
-CROWDGUARD is a crowd-safety monitoring prototype for public events, built on the OMNIFORGE framework.
+CROWDGUARD is a crowd-safety monitoring prototype for public events, built on the OMNIFORGE framework. It includes
+the Virtual Crowd Intelligence Engine (VCIE), which turns oblique camera footage into a calibrated bird's-eye density, movement and
+digital-twin view.
 It estimates how many people are in each zone, flags overcrowding and dangerous build-up early, forecasts
 capacity breaches, and proposes safer movement routes, with every number labelled as **observed**, **estimate**
 or **synthetic**.
@@ -65,6 +67,30 @@ unchanged. CROWDGUARD adds:
   plus background jobs for media analysis.
 * **Eight React screens** (`frontend/src/crowdguard/`), integrated into the enhanced OMNIFORGE shell from `feature/omniforge-frontend`.
 
+## 2a. One analysis chain (integration)
+
+Every source (recorded video, still image, synthetic VCIE scenario, synthetic festival) flows through the same stages, each with one implementation:
+
+```
+camera / video / simulation
+  → frame sampling (media_analysis: ~5 fps, ≤30 s, ≤180 frames)          [non-blocking background job]
+  → camera calibration (calibration.py: 4-point homography, validated)
+  → person detection (crowd_detection.py: local YOLO or labelled HOG; detection.py projects to ground)
+  → multi-object tracking (crowd_tracking.py ByteTrack identity → tracking.py ground-plane Kalman kinematics)
+  → bird's-eye projection (perspective.py)
+  → density (density.py Gaussian KDE in persons/m² · density_estimator.py zone estimate with interval)
+  → zone population (zone_manager.py camera zones · density.py ground-plane zones)
+  → congestion detection (congestion_detector.py rules via decision engine · movement.py flow alerts)
+  → predictive analysis (crowd_forecaster.py + ml.forecast)
+  → route optimisation (route_optimizer.py, NetworkX)
+  → command centre (assess / simulate → React UI)
+```
+
+Provenance is explicit at every step. Frames carry `source_kind`: `recorded_video`, `image` or `synthetic` (no live camera
+streaming is implemented, so nothing is ever labelled live). They also carry `detector_backend` (`yolo`, `hog`, or `synthetic ground truth`) and
+`detection_failed`. Video jobs report whether the bird's-eye plane uses the **default preset** (rescaled, not a real calibration) or an
+**operator calibration**.
+
 ## 3. Services (`backend/app/crowdguard/`)
 
 | Module | Responsibility |
@@ -81,7 +107,14 @@ unchanged. CROWDGUARD adds:
 | `safety_recommendations.py` | Ranked, explained actions (relieve zone, meter entry, clear exit, re-route egress, verify feed, manage queue, steward bottleneck). Each one has `requires_human_decision = True`. `validate_action` refuses any restrictive action that targets an emergency exit. |
 | `analysis.py` | One snapshot: readings → forecasts → facts → alerts → route state → recommendations → summary. Shared by simulation and live assessment. |
 | `simulation.py` | The deterministic synthetic festival (see §5) and a counterfactual run without intervention. |
-| `media_analysis.py` | Video/image ingestion: magic-byte sniffing, frame sampling (~5 fps, capped at 30 s / 180 frames), detection → tracking → zones → flow → estimates. Returns keyframes with overlays and maps camera zones to venue zones, with coverage-based extrapolation labelled as such. |
+| `media_analysis.py` | Video/image ingestion: magic-byte sniffing and frame sampling (~5 fps, capped at 30 s / 180 frames), then each frame goes through the **VCIE pipeline**. It aggregates camera-zone counts, estimates and flow, and for key frames returns the raw frame with overlays plus the five synchronised VCIE views. It maps camera zones to venue zones, with coverage-based extrapolation labelled as such. |
+| `calibration.py` / `perspective.py` | VCIE: four-point homography with convexity and conditioning checks; camera ↔ bird's-eye projection; metric grid. |
+| `detection.py` | VCIE adapter over the single detector: `BoundingBox` conversion and ground-contact projection. |
+| `tracking.py` | VCIE ground-plane Kalman filter (position, velocity, m/s). It takes ByteTrack ids for real footage and uses distance association only for synthetic agents. History is bounded. |
+| `density.py` | VCIE Gaussian KDE density grid (persons/m²), ground-plane zone metrics (shared occupancy bands) and heatmap rendering (gaussian / point / zone / movement). |
+| `movement.py` | VCIE movement vectors, bottleneck, counter-flow and severe-density alerts (advisory). |
+| `digital_twin.py` / `synthetic.py` | VCIE digital-twin rendering, and four deterministic synthetic camera scenarios using ground-truth boxes (always labelled synthetic). |
+| `pipeline.py` | VCIE orchestration per frame. It renders the five views only for key frames and caches them together, so they always come from the same frame. |
 
 ## 4. API (`/api/crowdguard`)
 
@@ -93,6 +126,11 @@ unchanged. CROWDGUARD adds:
 | `POST /assess` | `crowd.assess` | Live observations → readings, alerts, recommendations. Zones without an observation are reported as **missing**, not empty. |
 | `POST /route` | `crowd.route` | `{source, purpose: relieve|egress, group_size, tick or zones, blocked_edges, blocked_nodes}` |
 | `POST /forecast` | `crowd.forecast` | Deterministic forecast, plus `ml.forecast` when there are at least 16 points, plus a rolling backtest |
+| `GET /presets` | `crowd.vision_presets` | VCIE calibration preset, digital-twin venue, scenarios, heatmap modes, detector |
+| `POST /calibration` | `crowd.vision_calibrate` | **write**: validate a 4-point homography; applies to the live view and to later video jobs |
+| `POST /simulation/step`, `POST /simulation/reset` | `crowd.vision_step` | Synthetic VCIE frame: telemetry plus all five views of that frame (base64 JPEG) |
+| `GET /analysis/live/{view}` | — | Latest synthetic VCIE view as JPEG (`frame`, `birdseye`, `heatmap`, `movement`, `digitaltwin`, `tracks`) |
+| `GET /media/jobs` | — | Recent media jobs of this process (ids, status, filename) |
 | `POST /explain` | `crowd.explain` | `ai.explain` briefing (Gemini if configured, otherwise local fallback; the provider is reported) |
 | `POST /media`, `POST /media/sample`, `GET /media/jobs/{id}` | `crowd.analyse_media` | Background job with progress. Uploads are stored by SHA-256 and audited. |
 | `GET/POST /incidents`, `POST /incidents/{id}/actions`, `GET /incidents/{id}/verify` | `crowd.incident_*` | Human-only lifecycle with a four-eyes close, hash-chained events and a Merkle seal |
@@ -137,11 +175,27 @@ from the synthetic scenario only and say nothing about accuracy on real cameras.
   with an RFC 6962-style Merkle root. `verify` recomputes all three, and a test edits the DB row and confirms tampering is detected.
 * **Privacy.** No face recognition or re-identification is used. Track ids are ephemeral, and uploads are stored by hash on the local machine.
 
+## 6a. Frontend
+
+React 19, Vite, Tailwind v4 and Recharts. Every screen is lazy-loaded. Navigation:
+
+* **CROWDGUARD**: Command Centre (map-centred), Live Monitoring (ingest a recording, camera zones, feed the venue), Virtual Heatmap
+  (camera, bird's-eye, heatmap, movement and digital twin side by side from one frame; calibration by clicking four ground points; synthetic
+  scenarios or recorded-job key frames), Zone Intelligence, Crowd Forecasting, Movement Planner, Incident Management.
+* **OMNIFORGE**: Overview, Domain Workspace, Data & Evidence, Run History, Analytics (crowd outcomes and platform telemetry as tabs).
+* **Governance**: Approvals, Audit & Verification (capability and incident verification, plus the hash-chained audit log as tabs).
+* **Engineering**: Engine Lab, Settings.
+
+**Themes.** `ThemeProvider` (light, dark or system) persists the preference and follows the OS in system mode. An inline script applies
+the theme class before first paint, so there is no flash. All colours are CSS tokens on `:root` / `:root.dark`, and `dark:` utilities follow the
+resolved class. On a switch, `.theme-transition` is added to `<html>` for about 300 ms, so backgrounds, text, borders, inputs and SVG fills and strokes ease together
+(260 ms, `cubic-bezier(.2,.6,.2,1)`). This is disabled under `prefers-reduced-motion`. Charts read the resolved theme for their SVG colours.
+
 ## 7. Verified vs fallback in this build
 
 | Capability | Status on the build machine |
 |---|---|
-| YOLO person detection | **Verified**: local `yolov8n.pt` found in the user's home folder and a test inference passed. Weights are not in the repo (`*.pt` is git-ignored). |
+| YOLO person detection | **Verified**: `yolov8n.pt` at the repository root (committed on the VCIE branch; Ultralytics weights are AGPL-3.0) and a test inference passed. `YOLO_OFFLINE=true` prevents downloads. |
 | Tracking | **Verified**: Ultralytics BYTETracker (IoU tracker kept as fallback) |
 | Routing | NetworkX 3.6.1 |
 | LLM | **Not configured**: briefings use the deterministic local fallback and are labelled. The Gemini path was not exercised live. |
@@ -152,5 +206,7 @@ from the synthetic scenario only and say nothing about accuracy on real cameras.
 * The macroscopic simulator is a demonstration model, not a validated pedestrian simulation.
 * Camera zone polygons and metres-per-pixel must be configured per camera. Without calibration, speeds are px/s.
 * The occlusion model is a generic assumption. Calibrate it against manual counts before trusting absolute numbers.
-* Media jobs and the simulation cache are in-memory (lost on restart). Processing is CPU-only and capped at 30 s of video per job.
+* Media jobs and the simulation cache are in-memory (lost on restart). Processing caps each job at 30 s of video. Ultralytics uses a GPU automatically when one is available; this build was CPU-only.
+* There is no live camera streaming. Footage is analysed as recordings. The live synthetic VCIE pipeline is shared by everyone using the server.
+* The VCIE default calibration is a demo preset rescaled to each frame. Ground-plane densities and speeds are metric only after an operator calibrates four real ground points.
 * Identity is still the simulated OMNIFORGE header identity. Put real authentication in front before any deployment.

@@ -25,6 +25,7 @@ const ENGINE_TITLES: Record<string, string> = {
   crypto: 'Cryptography & Integrity',
   data: 'Data & ETL',
   decision: 'Decision & Rules',
+  crowd: 'Crowd Safety (CROWDGUARD)',
 }
 
 export function OverviewPage() {
@@ -47,16 +48,11 @@ export function OverviewPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Operational Intelligence Command
-            </span>
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted">OMNIFORGE framework</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl mt-0.5">
-            Platform Overview
-          </h1>
+          <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-ink">Platform Overview</h1>
           <p className="mt-1 text-sm text-ink-2 max-w-2xl">
-            Live telemetry of the OMNIFORGE framework: six engines, nine domain adapters, and the cryptographic audit chain.
+            Live state of the engine registry ({data ? Object.keys(data.health.engines).length : '…'} engines), {domains.length} domain adapters and the hash-chained audit log.
           </p>
         </div>
 
@@ -87,7 +83,7 @@ export function OverviewPage() {
                   Intelligence Mesh
                 </span>
                 <p className="text-sm font-semibold text-ink flex items-center gap-1.5">
-                  <span>6 of 6 Engines Ready</span>
+                  <span>{Object.values(data.health.engines).filter((e) => e.status === 'ok').length} of {Object.keys(data.health.engines).length} engines ready</span>
                   <StatusBadge status={data.health.status} />
                 </p>
               </div>

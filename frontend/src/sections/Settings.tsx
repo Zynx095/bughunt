@@ -5,6 +5,7 @@ import {
   Tv,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { useTheme } from '../lib/theme'
 
 import { DomainBadgeIcon } from '../components/domainIcon'
 import { DataTable } from '../components/table'
@@ -32,7 +33,8 @@ interface ProviderStatus {
 }
 
 export function SettingsPage() {
-  const { domains, active, setActiveDomain, identity, setIdentity, theme, setTheme } = useApp()
+  const { domains, active, setActiveDomain, identity, setIdentity } = useApp()
+  const { preference: theme, setPreference: setTheme, resolved } = useTheme()
   const settings = useApi<SettingsView>('/api/settings', [active?.id])
 
   type ProvResult = { active: string; preference: string; providers: ProviderStatus[] }
@@ -64,7 +66,7 @@ export function SettingsPage() {
       />
 
       {/* Theme & Appearance */}
-      <Card title="Interface Theme & Appearance" subtitle="Dark-first design tokens with Linear/Vercel precision">
+      <Card title="Appearance" subtitle={`Saved in this browser. Currently showing the ${resolved} theme; switches animate unless reduced motion is requested.`}>
         <div className="grid gap-3 sm:grid-cols-3 max-w-xl">
           <button
             type="button"
@@ -76,10 +78,10 @@ export function SettingsPage() {
                 : 'border-line bg-surface hover:bg-surface-2'
             )}
           >
-            <Moon className="size-5 text-indigo-400" />
+            <Moon className="size-5 text-[var(--accent)]" />
             <div>
               <p className="text-xs font-semibold text-ink">Dark Mode</p>
-              <p className="text-[11px] text-muted">Deep operational dark</p>
+              <p className="text-[11px] text-muted">Charcoal-navy for control rooms</p>
             </div>
           </button>
 
@@ -93,10 +95,10 @@ export function SettingsPage() {
                 : 'border-line bg-surface hover:bg-surface-2'
             )}
           >
-            <Sun className="size-5 text-amber-500" />
+            <Sun className="size-5 text-warn" />
             <div>
               <p className="text-xs font-semibold text-ink">Light Mode</p>
-              <p className="text-[11px] text-muted">Crisp high contrast</p>
+              <p className="text-[11px] text-muted">Ivory neutrals, crisp ink</p>
             </div>
           </button>
 
@@ -112,7 +114,7 @@ export function SettingsPage() {
           >
             <Tv className="size-5 text-muted" />
             <div>
-              <p className="text-xs font-semibold text-ink">System Sync</p>
+              <p className="text-xs font-semibold text-ink">System</p>
               <p className="text-[11px] text-muted">Follow OS preferences</p>
             </div>
           </button>
@@ -122,7 +124,7 @@ export function SettingsPage() {
       {/* Active Domain Selector */}
       <Card
         title="Active Domain Adapter"
-        subtitle="Switching dynamically reconfigures the workspace pipeline, visible navigation sections, and schema validation"
+        subtitle="Selects the pipeline, input schema and sample data used by the Domain Workspace and Run History"
       >
         <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {domains.map((d) => {

@@ -251,6 +251,13 @@ def sample_media(payload: dict[str, Any] = Body(default_factory=dict), svc: Serv
     return _start_job(svc, ctx, doc, opts, provenance)
 
 
+@router.get("/media/jobs")
+def media_jobs():
+    """Recent media jobs of this server process (newest first), without their results."""
+    jobs = sorted(_JOBS.values(), key=lambda j: j["created"], reverse=True)
+    return [{k: v for k, v in j.items() if k not in ("response",)} | {"progress": MEDIA_PROGRESS.get(j["id"], {})} for j in jobs]
+
+
 @router.get("/media/jobs/{job_id}")
 def media_job(job_id: str):
     job = _JOBS.get(job_id)

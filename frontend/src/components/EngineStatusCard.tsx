@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Cpu, Database, KeyRound, Lock, ShieldCheck, Sparkles } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Cpu, Database, KeyRound, Lock, ShieldCheck, Sparkles, Users } from 'lucide-react'
 
 import { cx } from '../lib/cx'
 import { StatusBadge } from './ui'
@@ -20,6 +20,7 @@ const ENGINE_ICONS: Record<string, typeof Cpu> = {
   crypto: KeyRound,
   data: Database,
   decision: Lock,
+  crowd: Users,
 }
 
 export function EngineStatusCard({

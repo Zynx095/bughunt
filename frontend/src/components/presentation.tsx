@@ -1,10 +1,8 @@
 import { AlertTriangle, Bot, CheckCircle2, CircleSlash, Cpu, Loader2, Sparkles, XCircle } from 'lucide-react'
 
-import { fmtMs, fmtValue } from '../lib/format'
-import type { Narrative, Presentation, RunRecord, RunStep, StepInfo } from '../lib/types'
-import { ChartCard } from './charts'
-import { DataTable } from './table'
-import { Badge, Card, Disclosure, JsonView, Stat } from './ui'
+import { fmtMs } from '../lib/format'
+import type { Narrative, RunRecord, RunStep, StepInfo } from '../lib/types'
+import { Badge, Card, Disclosure, JsonView } from './ui'
 import { cx } from '../lib/cx'
 
 export function NarrativeCard({ narrative, title = 'Explanation' }: { narrative: Narrative; title?: string }) {
@@ -21,43 +19,6 @@ export function NarrativeCard({ narrative, title = 'Explanation' }: { narrative:
   )
 }
 
-export function PresentationView({ p }: { p: Presentation }) {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/[0.07] px-4 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Result</p>
-        <p className="mt-0.5 text-base font-semibold text-ink">{p.headline}</p>
-      </div>
-      {p.metrics.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-          {p.metrics.map((m) => <Stat key={m.label} label={m.label} value={fmtValue(m.value)} hint={m.hint ?? undefined} tone={m.tone} />)}
-        </div>
-      )}
-      {p.narrative && <NarrativeCard narrative={p.narrative} />}
-      {p.charts.length > 0 && (
-        <div className={cx('grid gap-4', p.charts.length > 1 && 'xl:grid-cols-2')}>
-          {p.charts.map((c) => <ChartCard key={c.title} spec={c} />)}
-        </div>
-      )}
-      {p.tables.filter((t) => t.rows.length).map((t) => (
-        <Card key={t.title} title={t.title} subtitle={`${t.rows.length} row${t.rows.length === 1 ? '' : 's'}`}>
-          <div className="max-h-[28rem] overflow-auto"><DataTable columns={t.columns} rows={t.rows} /></div>
-        </Card>
-      ))}
-      {p.artifacts && Object.keys(p.artifacts).length > 0 && (
-        <Disclosure summary={<span className="font-medium">Cryptographic artifacts <span className="text-muted">({Object.keys(p.artifacts).join(', ')})</span></span>}>
-          <JsonView value={p.artifacts} />
-        </Disclosure>
-      )}
-      {p.notes.length > 0 && (
-        <ul className="space-y-1 rounded-xl border border-line bg-surface-2 px-4 py-3 text-xs text-ink-2">
-          {p.notes.map((n) => <li key={n} className="flex gap-2"><span aria-hidden>•</span>{n}</li>)}
-        </ul>
-      )}
-    </div>
-  )
-}
-
 const STEP_ICON = {
   completed: <CheckCircle2 className="size-4 text-good-ink" aria-label="completed" />,
   failed: <XCircle className="size-4 text-critical-ink" aria-label="failed" />,
@@ -65,7 +26,6 @@ const STEP_ICON = {
   running: <Loader2 className="size-4 animate-spin text-muted" aria-label="running" />,
 }
 
-/** Pipeline steps: declared steps before a run, real per-step status after. Nothing is animated without a real state. */
 export function StepList({ steps, run, running }: { steps: StepInfo[]; run?: RunRecord | null; running?: boolean }) {
   const byId = new Map<string, RunStep>((run?.steps ?? []).map((s) => [s.id, s]))
   return (

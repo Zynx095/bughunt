@@ -51,7 +51,7 @@ export interface JsonSchema {
 
 export type SectionId =
   | 'overview' | 'workspace' | 'ingestion' | 'runs' | 'analytics' | 'approvals' | 'engines' | 'audit' | 'settings'
-  | 'cg-command' | 'cg-live' | 'cg-zones' | 'cg-forecast' | 'cg-routes' | 'cg-incidents' | 'cg-analytics' | 'cg-audit'
+  | 'cg-command' | 'cg-live' | 'cg-heatmap' | 'cg-zones' | 'cg-forecast' | 'cg-routes' | 'cg-incidents'
 
 export interface StepInfo {
   id: string

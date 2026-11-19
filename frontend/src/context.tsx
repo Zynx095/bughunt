@@ -3,8 +3,6 @@ import { createContext, useContext } from 'react'
 import type { Identity } from './lib/api'
 import type { DomainInfo, Health, SectionId } from './lib/types'
 
-export type ThemePreference = 'system' | 'dark' | 'light'
-
 export interface AppState {
   domains: DomainInfo[]
   active: DomainInfo | null
@@ -13,8 +11,6 @@ export interface AppState {
   setIdentity: (i: Identity) => void
   navigate: (section: SectionId, param?: string) => void
   param: string | null
-  theme: ThemePreference
-  setTheme: (theme: ThemePreference) => void
   health: Health | null
   pendingApprovalsCount: number
   refreshHealth: () => Promise<void>

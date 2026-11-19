@@ -1,6 +1,14 @@
 import {
   Activity,
   BarChart3,
+  Camera,
+  Layers,
+  LineChart as LineChartIcon,
+  Navigation,
+  Radio,
+  ShieldCheck,
+  Siren,
+  TrendingUp,
   ClipboardCheck,
   Cpu,
   DatabaseZap,
@@ -19,11 +27,20 @@ import { DomainBadgeIcon } from './components/domainIcon'
 import { GlobalHeader } from './components/GlobalHeader'
 import { ErrorBox, Spinner } from './components/ui'
 import { AppContext, type AppState, type ThemePreference } from './context'
+import { CrowdGuardProvider } from './crowdguard/state'
 import { get, loadIdentity, saveIdentity, send, setApiIdentity, type Identity } from './lib/api'
 import { cx } from './lib/cx'
 import type { Approval, DomainInfo, Health, Role, SectionId, SettingsView } from './lib/types'
 
 // Route-level code-splitting: each section is loaded lazily on demand
+const CommandCentrePage = React.lazy(() => import('./crowdguard/pages/CommandCentre').then((m) => ({ default: m.CommandCentrePage })))
+const LiveMonitoringPage = React.lazy(() => import('./crowdguard/pages/LiveMonitoring').then((m) => ({ default: m.LiveMonitoringPage })))
+const ZoneIntelligencePage = React.lazy(() => import('./crowdguard/pages/ZoneIntelligence').then((m) => ({ default: m.ZoneIntelligencePage })))
+const ForecastingPage = React.lazy(() => import('./crowdguard/pages/Forecasting').then((m) => ({ default: m.ForecastingPage })))
+const MovementPlannerPage = React.lazy(() => import('./crowdguard/pages/MovementPlanner').then((m) => ({ default: m.MovementPlannerPage })))
+const IncidentsPage = React.lazy(() => import('./crowdguard/pages/Incidents').then((m) => ({ default: m.IncidentsPage })))
+const CrowdAnalyticsPage = React.lazy(() => import('./crowdguard/pages/CrowdAnalytics').then((m) => ({ default: m.CrowdAnalyticsPage })))
+const AuditVerificationPage = React.lazy(() => import('./crowdguard/pages/AuditVerification').then((m) => ({ default: m.AuditVerificationPage })))
 const OverviewPage = React.lazy(() => import('./sections/Overview').then((m) => ({ default: m.OverviewPage })))
 const WorkspacePage = React.lazy(() => import('./sections/Workspace').then((m) => ({ default: m.WorkspacePage })))
 const IngestionPage = React.lazy(() => import('./sections/Ingestion').then((m) => ({ default: m.IngestionPage })))
@@ -39,7 +56,23 @@ interface NavCategory {
   items: { id: SectionId; label: string; icon: LucideIcon }[]
 }
 
+const CG_NAV: NavCategory = {
+  title: 'CROWDGUARD · Event Safety',
+  items: [
+    { id: 'cg-command', label: 'Command Centre', icon: Radio },
+    { id: 'cg-live', label: 'Live Monitoring', icon: Camera },
+    { id: 'cg-zones', label: 'Zone Intelligence', icon: Layers },
+    { id: 'cg-forecast', label: 'Crowd Forecasting', icon: TrendingUp },
+    { id: 'cg-routes', label: 'Movement Planner', icon: Navigation },
+    { id: 'cg-incidents', label: 'Incident Management', icon: Siren },
+    { id: 'cg-analytics', label: 'Analytics', icon: LineChartIcon },
+    { id: 'cg-audit', label: 'Audit & Verification', icon: ShieldCheck },
+  ],
+}
+const CG_IDS = new Set<SectionId>(CG_NAV.items.map((i) => i.id))
+
 const NAV_GROUPS: NavCategory[] = [
+  CG_NAV,
   {
     title: 'Platform Command',
     items: [{ id: 'overview', label: 'Platform Overview', icon: LayoutDashboard }],
@@ -74,7 +107,7 @@ const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items)
 function parseHash(): { section: SectionId; param: string | null } {
   const [, section, param] = window.location.hash.split('/')
   const valid = ALL_NAV_ITEMS.some((n) => n.id === section)
-  return { section: valid ? (section as SectionId) : 'overview', param: param ?? null }
+  return { section: valid ? (section as SectionId) : 'cg-command', param: param ?? null }
 }
 
 const THEME_KEY = 'omniforge.theme'
@@ -188,10 +221,10 @@ export default function App() {
   const active = domains.find((d) => d.id === activeId) ?? null
   const visibleItemIds = useMemo(() => {
     if (!active) return new Set(ALL_NAV_ITEMS.map((n) => n.id))
-    return new Set(active.sections)
+    return new Set<SectionId>([...CG_IDS, ...active.sections])
   }, [active])
 
-  const section = active && !active.sections.includes(route.section) ? 'overview' : route.section
+  const section: SectionId = CG_IDS.has(route.section) || !active || active.sections.includes(route.section) ? route.section : 'overview'
   const currentNav = ALL_NAV_ITEMS.find((n) => n.id === section)
 
   const state: AppState = {
@@ -228,7 +261,7 @@ export default function App() {
   if (!active) {
     return (
       <div className="flex h-screen items-center justify-center p-10">
-        <Spinner label="Booting OMNIFORGE Engine Mesh & Domain Adapters" />
+        <Spinner label="Booting CROWDGUARD on the OMNIFORGE engine mesh" />
       </div>
     )
   }
@@ -245,11 +278,11 @@ export default function App() {
         >
           {/* Brand Logo Header */}
           <div className="flex items-center gap-2.5 px-5 pb-4 pt-5 border-b border-line/20">
-            <img src="/favicon.svg" alt="OMNIFORGE" className="size-8" />
+            <img src="/favicon.svg" alt="CROWDGUARD" className="size-8" />
             <div className="min-w-0">
-              <p className="text-sm font-bold tracking-wider text-sidebar-ink">OMNIFORGE</p>
+              <p className="text-sm font-bold tracking-wider text-sidebar-ink">CROWDGUARD</p>
               <p className="text-[10px] text-sidebar-muted uppercase tracking-widest font-mono">
-                Adaptive AI Framework
+                Crowd safety · OMNIFORGE
               </p>
             </div>
             <button
@@ -371,7 +404,8 @@ export default function App() {
             health={health}
           />
 
-          <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <CrowdGuardProvider active={CG_IDS.has(section)}>
+          <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
             <Suspense
               fallback={
                 <div className="flex h-64 items-center justify-center">
@@ -379,6 +413,14 @@ export default function App() {
                 </div>
               }
             >
+              {section === 'cg-command' && <CommandCentrePage />}
+              {section === 'cg-live' && <LiveMonitoringPage />}
+              {section === 'cg-zones' && <ZoneIntelligencePage />}
+              {section === 'cg-forecast' && <ForecastingPage />}
+              {section === 'cg-routes' && <MovementPlannerPage />}
+              {section === 'cg-incidents' && <IncidentsPage />}
+              {section === 'cg-analytics' && <CrowdAnalyticsPage />}
+              {section === 'cg-audit' && <AuditVerificationPage />}
               {section === 'overview' && <OverviewPage />}
               {section === 'workspace' && <WorkspacePage key={active.id} />}
               {section === 'ingestion' && <IngestionPage />}
@@ -390,6 +432,7 @@ export default function App() {
               {section === 'settings' && <SettingsPage />}
             </Suspense>
           </main>
+          </CrowdGuardProvider>
         </div>
       </div>
     </AppContext.Provider>

@@ -29,15 +29,32 @@ export function useApi<T>(path: string | null, deps: unknown[] = []) {
   return { data, error, loading, reload, setData }
 }
 
-/** Track the OS colour scheme so chart colours (SVG attributes) can switch with it. */
+function resolveIsDark(): boolean {
+  if (typeof document === 'undefined') return false
+  if (document.documentElement.classList.contains('dark')) return true
+  if (document.documentElement.classList.contains('light')) return false
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+/** Track whether dark mode is currently active (via explicit class or OS preference). */
 export function useDarkMode(): boolean {
-  const query = '(prefers-color-scheme: dark)'
-  const [dark, setDark] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  const [dark, setDark] = useState(resolveIsDark)
+
   useEffect(() => {
-    const mq = window.matchMedia(query)
-    const onChange = (e: MediaQueryListEvent) => setDark(e.matches)
+    const observer = new MutationObserver(() => {
+      setDark(resolveIsDark())
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => setDark(resolveIsDark())
     mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
+
+    return () => {
+      observer.disconnect()
+      mq.removeEventListener('change', onChange)
+    }
   }, [])
+
   return dark
 }

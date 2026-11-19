@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Cpu,
   DatabaseZap,
+  Eye,
   FlaskConical,
   History,
   LayoutDashboard,
@@ -33,6 +34,7 @@ const AnalyticsPage = React.lazy(() => import('./sections/Analytics').then((m) =
 const EngineLab = React.lazy(() => import('./sections/EngineLab').then((m) => ({ default: m.EngineLab })))
 const AuditPage = React.lazy(() => import('./sections/Audit').then((m) => ({ default: m.AuditPage })))
 const SettingsPage = React.lazy(() => import('./sections/Settings').then((m) => ({ default: m.SettingsPage })))
+const VirtualHeatmapPage = React.lazy(() => import('./sections/VirtualHeatmap').then((m) => ({ default: m.VirtualHeatmapPage })))
 
 interface NavCategory {
   title: string
@@ -48,6 +50,7 @@ const NAV_GROUPS: NavCategory[] = [
     title: 'Domain Intelligence',
     items: [
       { id: 'workspace', label: 'Domain Workspace', icon: FlaskConical },
+      { id: 'virtual-heatmap', label: 'Virtual Heatmap', icon: Eye },
       { id: 'ingestion', label: 'Data & Evidence Vault', icon: DatabaseZap },
       { id: 'runs', label: 'Runs & Execution History', icon: History },
     ],
@@ -381,6 +384,7 @@ export default function App() {
             >
               {section === 'overview' && <OverviewPage />}
               {section === 'workspace' && <WorkspacePage key={active.id} />}
+              {section === 'virtual-heatmap' && <VirtualHeatmapPage />}
               {section === 'ingestion' && <IngestionPage />}
               {section === 'runs' && <RunsPage />}
               {section === 'approvals' && <ApprovalsPage />}

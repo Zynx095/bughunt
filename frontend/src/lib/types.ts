@@ -50,7 +50,7 @@ export interface JsonSchema {
 }
 
 export type SectionId =
-  | 'overview' | 'workspace' | 'ingestion' | 'runs' | 'analytics' | 'approvals' | 'engines' | 'audit' | 'settings'
+  | 'overview' | 'workspace' | 'virtual-heatmap' | 'ingestion' | 'runs' | 'analytics' | 'approvals' | 'engines' | 'audit' | 'settings'
 
 export interface StepInfo {
   id: string

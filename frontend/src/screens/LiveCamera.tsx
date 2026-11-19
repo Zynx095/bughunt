@@ -1,5 +1,5 @@
 import { Crosshair } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { cx } from '../lib/cx'
 import { live } from '../live/client'
@@ -25,12 +25,25 @@ export function LiveCamera() {
     setWantFrames(true)
     return () => setWantFrames(false)
   }, [setWantFrames])
+  // Fit the frame (and its overlay) inside the stage while keeping the source aspect ratio.
+  const stage = useRef<HTMLDivElement>(null)
+  const [fit, setFit] = useState({ w: 0, h: 0 })
 
   const src = snapshot?.source ?? status?.source
   const fw = frame?.width ?? snapshot?.frame.width ?? 1280
   const fh = frame?.height ?? snapshot?.frame.height ?? 720
   const cal = snapshot?.calibration
   const running = !!src && snapshot?.status !== 'idle'
+  useEffect(() => {
+    const el = stage.current
+    if (!el) return undefined
+    const ro = new ResizeObserver(([e]) => {
+      const k = Math.min(e.contentRect.width / fw, e.contentRect.height / fh)
+      setFit({ w: Math.floor(fw * k), h: Math.floor(fh * k) })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fw, fh])
 
   function click(e: React.MouseEvent<HTMLDivElement>) {
     if (!picking) return
@@ -95,13 +108,13 @@ export function LiveCamera() {
           <span className="font-semibold text-ink">{src?.label ?? 'No source'}</span>
           <span className="text-ink-2">
             {src ? (src.kind === 'live_camera' ? 'Live camera' : src.kind === 'recorded_video' ? 'Recorded video, not live' : 'Simulation, not camera data') : ''}
-            {snapshot && <> {' '}| detector {snapshot.detector} | tracker {snapshot.tracker}</>}
+            {snapshot && <span className="ml-3 text-muted">Detector: {snapshot.detector}. Tracking: {snapshot.tracker}.</span>}
           </span>
         </div>
-        <div className="relative flex min-h-0 flex-1 items-center justify-center">
+        <div ref={stage} className="relative flex min-h-0 flex-1 items-center justify-center">
           {frame ? (
-            <div className={cx('relative max-h-full max-w-full', picking && 'cursor-crosshair')} style={{ aspectRatio: `${fw} / ${fh}`, height: '100%' }} onClick={click}>
-              <img src={frame.image} alt="Latest analysed camera frame" className="block h-full w-full select-none rounded-[4px] object-contain" draggable={false} />
+            <div className={cx('relative', picking && 'cursor-crosshair')} style={{ width: fit.w, height: fit.h }} onClick={click}>
+              <img src={frame.image} alt="Latest analysed camera frame" className="block h-full w-full select-none rounded-[4px]" draggable={false} />
               <svg viewBox={`0 0 ${fw} ${fh}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
                 {quad.length > 0 && (
                   <polygon points={quad.map((p) => p.join(',')).join(' ')} fill="color-mix(in srgb, var(--color-accent) 10%, transparent)"
@@ -113,12 +126,12 @@ export function LiveCamera() {
                     <text x={p[0] + fw / 90} y={p[1] - fw / 110} fontSize={fw / 55} fill="#fff" stroke="#000" strokeWidth={fw / 500} paintOrder="stroke">{i + 1}</text>
                   </g>
                 ))}
-                {snapshot?.tracks.filter((t) => !t.predicted).map((t) => {
+                {snapshot?.tracks.filter((t) => !t.predicted).map((t, _i, all) => {
                   const [x1, y1, x2, y2] = t.box
                   return (
                     <g key={t.id}>
                       <rect x={x1 * fw} y={y1 * fh} width={(x2 - x1) * fw} height={(y2 - y1) * fh} fill="none" stroke="var(--color-accent-2)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-                      <text x={x1 * fw + 3} y={y1 * fh - 5} fontSize={fw / 70} fill="#fff" stroke="#000" strokeWidth={fw / 600} paintOrder="stroke">#{t.id} {Math.round(t.conf * 100)}%</text>
+                      {all.length <= 12 && <text x={x1 * fw + 3} y={y1 * fh - 5} fontSize={fw / 70} fill="#fff" stroke="#000" strokeWidth={fw / 600} paintOrder="stroke">#{t.id} {Math.round(t.conf * 100)}%</text>}
                       <circle cx={t.foot_px[0]} cy={t.foot_px[1]} r={fw / 220} fill="var(--color-elevated)" />
                     </g>
                   )
@@ -133,7 +146,7 @@ export function LiveCamera() {
         </div>
         {frame && snapshot && (
           <p className="mt-2 text-[12px] text-muted">
-            Boxes: people the detector found in this frame, with track number and confidence. The yellow dot is the foot point mapped to the floor.
+            Boxes: people the detector found in this frame{(snapshot.tracks.length <= 12) ? ', with track number and confidence' : ' (numbers hidden while more than 12 are tracked; see the list)'}. The yellow dot is the foot point mapped to the floor.
             Preview is about four frames a second; the map updates at the processing rate.
           </p>
         )}

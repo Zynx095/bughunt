@@ -55,17 +55,15 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
     const cv = cellCanvas.current
     if (!cv) return
     const tk = readTokens()
-    const { rows, cols, cell_m: cell } = site
+    const { rows, cols } = site
     cv.width = cols * CELL_PX
     cv.height = rows * CELL_PX
     const ctx = cv.getContext('2d')
     if (!ctx) return
     const img = ctx.createImageData(cv.width, cv.height)
-    const free = rgb(tk.free)
     const crit = rgb(tk.critical)
     const obst = rgb(tk.obstacle)
     const unk = rgb(tk.unknown)
-    const area = cell * cell
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const i = r * cols + c
@@ -75,8 +73,7 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
         let hatch = false
         if (st === 'B') { col = obst; a = 0.5 }
         else if (st === 'U') { col = unk; a = 0.22; hatch = true }
-        else if (st === 'C') { col = crit; a = 0.22 }
-        else if (st === 'A' && layers.free && grid) { col = free; a = 0.07 + 0.16 * Math.min(1, (grid.free_m2[i] ?? area) / area) }
+        else if (st === 'C') { col = crit; a = 0.2 }
         if (!col) continue
         for (let y = 0; y < CELL_PX; y++) {
           for (let x = 0; x < CELL_PX; x++) {
@@ -94,7 +91,7 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
       }
     }
     ctx.putImageData(img, 0, 0)
-  }, [grid, site, layers.free, resolved])
+  }, [grid, site, resolved])
 
   // ---- density heatmap (Gaussian KDE from the backend, smoothly upsampled)
   useEffect(() => {
@@ -105,8 +102,10 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
     cv.width = box.w
     cv.height = box.h
     ctx.clearRect(0, 0, box.w, box.h)
-    if (!grid || !layers.heat) return
+    if (!grid || (!layers.heat && !layers.free)) return
     const tk = readTokens()
+    const free = rgb(tk.free)
+    const area = site.cell_m * site.cell_m
     const small = document.createElement('canvas')
     small.width = grid.cols
     small.height = grid.rows
@@ -117,7 +116,12 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
     for (let i = 0; i < grid.values.length; i++) {
       if (grid.state[i] === 'B' || grid.state[i] === 'U') continue
       const t = metric ? grid.values[i] / site.congested_density : grid.values[i]
-      const [r, g, b, a] = heat(t, tk)
+      let [r, g, b, a] = layers.heat ? heat(t, tk) : [0, 0, 0, 0]
+      if (a < 0.05 && layers.free && grid.state[i] === 'A') {
+        // Open, observed floor: a light teal wash whose strength follows the usable free area.
+        ;[r, g, b] = free
+        a = 0.035 + 0.1 * Math.min(1, (grid.free_m2[i] ?? area) / area)
+      }
       img.data[i * 4] = r
       img.data[i * 4 + 1] = g
       img.data[i * 4 + 2] = b
@@ -127,7 +131,7 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
     ctx.imageSmoothingEnabled = true
     ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(small, 0, 0, box.w, box.h)
-  }, [grid, layers.heat, box, site.congested_density, resolved])
+  }, [grid, layers.heat, layers.free, box, site.congested_density, site.cell_m, resolved])
 
   const toMeters = (e: { clientX: number; clientY: number }, el: Element): Pt => {
     const r = el.getBoundingClientRect()
@@ -256,7 +260,7 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
 
             {layers.people && snapshot?.tracks.filter((t) => t.in_view).map((t) => {
               const sel = selection?.kind === 'track' && selection.id === t.id
-              const r = Math.max(0.2, fs(3.5))
+              const r = Math.max(0.12, fs(2.6))
               return (
                 <g key={t.id} onClick={(e) => { e.stopPropagation(); onSelect?.({ kind: 'track', id: t.id }) }} className="cursor-pointer">
                   {sel && <circle cx={t.ground[0]} cy={t.ground[1]} r={t.uncertainty_m} fill="color-mix(in srgb, var(--color-accent) 12%, transparent)"

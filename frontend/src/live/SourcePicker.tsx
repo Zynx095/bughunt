@@ -115,7 +115,10 @@ export function SourcePicker() {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-4 rounded-[5px] border border-line p-0.5 text-[12.5px]" role="tablist" aria-label="Source type">
+      {running && (snapshot?.source ?? status?.source) && (
+        <p className="text-[12.5px] text-ink-2">Now monitoring: <span className="text-ink">{(snapshot?.source ?? status?.source)?.label}</span></p>
+      )}
+      <div className="grid grid-cols-2 gap-0.5 rounded-[5px] border border-line p-0.5 text-[12.5px]" role="tablist" aria-label="Source type">
         {tabs.map((t) => (
           <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
             className={cx('rounded-[4px] py-1', tab === t.id ? 'bg-raised font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]' : 'text-ink-2 hover:text-ink')}>

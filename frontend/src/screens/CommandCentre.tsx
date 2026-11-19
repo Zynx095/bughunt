@@ -224,7 +224,7 @@ function Context({ snapshot, selection, onClear, onRouteFromZone }: {
 const KIND_TEXT: Record<string, string> = {
   zone_capacity_exceeded: 'Capacity exceeded', zone_near_capacity: 'Near capacity', rapid_accumulation: 'Rapid build-up',
   corridor_congestion: 'Congestion', camera_disconnected: 'Camera disconnected', camera_reconnected: 'Camera back', detection_degraded: 'Detection degraded',
-  exit_unavailable: 'Exit unavailable', route_changed: 'Route changed', flow_slowed: 'Flow slowed',
+  exit_unavailable: 'Exit unavailable', route_changed: 'Route changed', flow_slowed: 'Flow slowed', camera_slow: 'Camera slow',
 }
 
 function placeOf(a: Alert): string {

@@ -264,6 +264,7 @@ class LiveMonitor:
             self.stats = self._fresh_stats()
             self.stats["started_at"] = time.time()
             self._latest = None
+            self.last_snapshot = None  # never hand a new client the previous source's picture
             self._zone_hist.clear()
             self.alerts.clear_all()
             self._build_processor()
@@ -304,6 +305,7 @@ class LiveMonitor:
                 self.source.close()
             self.source = None
             self.processor = None
+            self.last_snapshot = None
             if self.status not in ("error",):
                 self.status = "idle"
         self._broadcast_status()
@@ -420,8 +422,9 @@ class LiveMonitor:
 
     def _process_loop(self) -> None:
         last_index = -1
-        fps_ema = None
-        last_t = None
+        # Processing rate = frames completed in the last ~2 s divided by the time they span. An average
+        # of 1/interval would overstate the rate whenever a stall is followed by a quick frame.
+        done_at: deque[float] = deque()
         while self._running:
             with self._cond:
                 if self._latest is None or self._latest.index == last_index:
@@ -456,14 +459,14 @@ class LiveMonitor:
                 continue
             proc_ms = (time.perf_counter() - t0) * 1000
             now = time.time()
-            if last_t is not None:
-                inst = 1.0 / max(1e-3, now - last_t)
-                fps_ema = inst if fps_ema is None else 0.8 * fps_ema + 0.2 * inst
-            last_t = now
+            done_at.append(now)
+            while len(done_at) > 2 and now - done_at[0] > 2.0:
+                done_at.popleft()
+            fps = (len(done_at) - 1) / (done_at[-1] - done_at[0]) if len(done_at) > 1 and done_at[-1] > done_at[0] else 0.0
             with self._lock:
                 if self.status in ("disconnected", "starting"):
                     self.status = "running"
-                self.stats.update(fps=round(fps_ema or 0.0, 1), proc_ms=round(proc_ms, 1), e2e_ms=round((now - frame.captured_at) * 1000, 1),
+                self.stats.update(fps=round(fps, 1), proc_ms=round(proc_ms, 1), e2e_ms=round((now - frame.captured_at) * 1000, 1),
                                   processed=self.stats["processed"] + 1, detections=result["detections"], tracks=len(result["tracks"]))
             self._publish_snapshot((frame, result))
             if now - self._last_preview >= FRAME_PREVIEW_INTERVAL_S and any(s.frames for s in self._subs):
@@ -546,6 +549,13 @@ class LiveMonitor:
                                 observation=(f"Detection failures on {fail_rate:.0%} of recent frames" if fail_rate > 0.2
                                              else f"Mean detection confidence {np.mean(confs):.2f}" if confs else ""),
                                 action="Check lighting, focus and camera angle; counts may be low."))
+        src = self.source
+        started = self.stats.get("started_at") or now
+        slow = (src is not None and src.kind == "live_camera" and now - started > 6 and 0 < self.stats.get("capture_fps", 0) < 3)
+        add(self.alerts.observe("camera_slow", slow, now, severity="medium", kind="camera_slow",
+                                location={"camera": src.label if src else ""},
+                                observation=f"The camera delivers only {self.stats.get('capture_fps', 0)} frames per second",
+                                action="Close other applications using the camera, or lower its resolution."))
         if route_change:
             add(self.alerts.event(f"route:{hash(route_change) % 1000}", now, severity="medium", kind="route_changed",
                                   location={"origin": self._route.get("origin")}, observation=route_change,

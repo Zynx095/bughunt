@@ -67,7 +67,7 @@ export function TopBar({ screen, onNavigate }: { screen: ScreenId; onNavigate: (
         <span className="hidden items-center gap-2 lg:flex">
           <span className="inline-block size-2 rounded-full" style={{ background: m.colour }} aria-hidden />
           <span className="font-medium text-ink">{m.word}</span>
-          {src && <span className="max-w-[220px] truncate text-ink-2" title={src.label}>{src.label}</span>}
+          {src && <span className="max-w-[220px] truncate text-ink-2" title={src.label}>{src.label.replace(/^(Simulation|Recording): /, '')}</span>}
         </span>
         <span className={cx('hidden md:inline', connection === 'open' ? 'text-muted' : 'text-elevated')}>
           {connection === 'open' ? 'Connected' : connection === 'connecting' ? 'Connecting' : 'Reconnecting'}

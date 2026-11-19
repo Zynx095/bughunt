@@ -256,7 +256,7 @@ class SyntheticDemonstrationEngine:
         # Overlay synthetic mode indicator watermark
         cv2.putText(
             frame,
-            f"SYNTHETIC SIMULATION [{self.scenario_name.upper()}] · FRAME {self.current_frame}",
+            f"SIMULATION - {self.scenario_name.replace('_', ' ')} - frame {self.current_frame}",
             (20, 32),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,

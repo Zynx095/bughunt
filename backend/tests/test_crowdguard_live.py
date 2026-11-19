@@ -391,3 +391,28 @@ def test_sources_label_recordings_and_simulation_honestly(tmp_path):
     assert camera_sources.build_source({"kind": "synthetic"}).kind == "synthetic"
     with pytest.raises(SourceError):
         camera_sources.build_source({"kind": "nonsense"})
+
+
+def test_switching_source_never_serves_the_previous_picture():
+    mon = LiveMonitor()
+    mon.start(FakeCam(fps=30), "fake-a")
+    try:
+        assert _wait(lambda: mon.last_snapshot is not None)
+        mon.start(FakeCam(fps=30), "fake-b")
+        # Until the new source produces its own snapshot, there is nothing to hand out.
+        snap = mon.last_snapshot
+        assert snap is None or json.loads(snap)["stats"]["started_at"] == mon.stats["started_at"]
+    finally:
+        mon.stop()
+    assert mon.last_snapshot is None
+
+
+def test_slow_camera_raises_an_alert():
+    mon = LiveMonitor()
+    cam = FakeCam(fps=2)  # a camera starved by another application
+    mon.start(cam, "fake")
+    try:
+        mon.stats["started_at"] = time.time() - 30  # pretend it has been running a while
+        assert _wait(lambda: any(a["kind"] == "camera_slow" for a in mon.alerts.recent()), timeout=12)
+    finally:
+        mon.stop()

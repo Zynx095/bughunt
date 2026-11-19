@@ -40,7 +40,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
 
   return (
     <div className="relative w-full overflow-hidden rounded-[6px] border border-line bg-raised">
-      {label && <div className="border-b border-line px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</div>}
+      {label && <div className="border-b border-line px-3 py-1.5 text-[12px] font-semibold text-ink-2">{label}</div>}
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img"
         aria-label="Venue map showing zones, occupancy, flows, exits and routes">
         <defs>
@@ -69,7 +69,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
           const my = (a[1] + b[1]) / 2
           return (
             <g key={e.id} onClick={onToggleEdge ? () => onToggleEdge(e.id) : undefined} className={onToggleEdge ? 'cursor-pointer' : undefined}>
-              <title>{`${e.id}: ${e.length_m} m × ${e.width_m} m, capacity ≈ ${Math.round(e.capacity_ppm)} people/min${blocked ? ' — BLOCKED (planner)' : ''}`}</title>
+              <title>{`${e.id}: ${e.length_m} m × ${e.width_m} m, capacity ≈ ${Math.round(e.capacity_ppm)} people/min${blocked ? ', blocked for planning' : ''}`}</title>
               <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="var(--color-ink-2)" strokeOpacity={0.16} strokeWidth={Math.max(4, e.width_m * 2.2)} strokeLinecap="round" />
               {onToggleEdge && <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="transparent" strokeWidth={18} />}
               {blocked && (
@@ -136,7 +136,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
             {pos[route.destination] && (
               <g>
                 <circle cx={pos[route.destination][0]} cy={pos[route.destination][1]} r={11} fill="white" stroke="var(--color-accent-2)" strokeWidth={4} />
-                <text x={pos[route.destination][0]} y={pos[route.destination][1] + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#0369a1">{route.id}</text>
+                <text x={pos[route.destination][0]} y={pos[route.destination][1] + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--color-accent-2)">{route.id}</text>
               </g>
             )}
           </g>
@@ -166,7 +166,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
                 <text x={cx} y={cy + 4} textAnchor="middle" fontSize={small ? 11 : 13} fontWeight="700" fill="var(--color-ink-2)">NO DATA</text>
               )}
               <text x={cx} y={cy + (small ? 31 : 40)} textAnchor="middle" fontSize={small ? 9 : 10.5} fontWeight="700" fill={colour} letterSpacing="0.06em">
-                {BAND_MARK[band]} {live ? BAND_LABEL[band].toUpperCase() : r?.carried_forward ? `STALE FEED · ${Math.round(r.age_s ?? 0)} s` : r?.feed_status === 'detector_error' ? 'DETECTION FAILED' : 'NO LIVE FEED'}
+                {BAND_MARK[band]} {live ? BAND_LABEL[band] : r?.carried_forward ? `Stale feed, ${Math.round(r.age_s ?? 0)} s old` : r?.feed_status === 'detector_error' ? 'Detection failed' : 'No feed'}
               </text>
             </g>
           )
@@ -188,16 +188,16 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
           const by = vertical ? y - 30 : y < 40 ? y - 12 : y - 12
           return (
             <g key={n.id} onClick={onToggleNode ? () => onToggleNode(n.id) : undefined} className={onToggleNode ? 'cursor-pointer' : undefined}>
-              <title>{`${n.name}${emergency ? ' (emergency exit — can never be closed by a software recommendation)' : ''}: ${blocked ? 'BLOCKED' : 'open'}`}</title>
+              <title>{`${n.name}${emergency ? ' (emergency exit: a software recommendation can never close it)' : ''}: ${blocked ? 'blocked' : 'open'}`}</title>
               <rect x={bx} y={by} width={w} height={vertical ? 60 : 24} rx={6} fill={fill} stroke="white" strokeWidth={1.5} />
               {vertical ? (
                 <>
-                  <text x={bx + w / 2} y={by + 18} textAnchor="middle" fontSize="10" fontWeight="800" fill="white">{emergency ? 'EMERGENCY' : 'EXIT'}</text>
+                  <text x={bx + w / 2} y={by + 18} textAnchor="middle" fontSize="10" fontWeight="700" fill="white">{emergency ? 'Emergency' : 'Exit'}</text>
                   <text x={bx + w / 2} y={by + 33} textAnchor="middle" fontSize="11" fontWeight="700" fill="white">{text}</text>
-                  <text x={bx + w / 2} y={by + 49} textAnchor="middle" fontSize="10" fontWeight="800" fill="white">{blocked ? '✖ BLOCKED' : '✔ OPEN'}</text>
+                  <text x={bx + w / 2} y={by + 49} textAnchor="middle" fontSize="10" fontWeight="600" fill="white">{blocked ? 'Blocked' : 'Open'}</text>
                 </>
               ) : (
-                <text x={bx + w / 2} y={by + 16} textAnchor="middle" fontSize="11" fontWeight="700" fill="white">{blocked ? `✖ ${text} BLOCKED` : `${text}`}</text>
+                <text x={bx + w / 2} y={by + 16} textAnchor="middle" fontSize="11" fontWeight="700" fill="white">{blocked ? `${text}, blocked` : `${text}`}</text>
               )}
             </g>
           )

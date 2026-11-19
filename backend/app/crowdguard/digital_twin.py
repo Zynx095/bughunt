@@ -171,7 +171,7 @@ class VenueDigitalTwin:
                 cx = int(m["m10"] / m["m00"])
                 cy = int(m["m01"] / m["m00"])
                 cv2.putText(canvas, z.name, (cx - 50, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (120, 140, 170), 1, cv2.LINE_AA)
-                cv2.putText(canvas, f"Cap: {z.capacity} ({z.area_sq_meters:.0f}m²)", (cx - 40, cy + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (85, 100, 125), 1, cv2.LINE_AA)
+                cv2.putText(canvas, f"Cap: {z.capacity} ({z.area_sq_meters:.0f} m2)", (cx - 40, cy + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (85, 100, 125), 1, cv2.LINE_AA)
 
         # 3. Draw Obstacles (Pillars, walls, kiosks)
         for obs in self.model.obstacles:

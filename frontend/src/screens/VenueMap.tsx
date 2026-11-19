@@ -1,4 +1,4 @@
-import { MousePointer2, Pause, Play, RotateCcw, Square, Trash2 } from 'lucide-react'
+import { Ban, DoorOpen, MousePointer2, Pause, Play, RotateCcw, Scan, Square, Trash2, type LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { CrowdGuardProvider } from '../crowdguard/state'
@@ -15,7 +15,8 @@ import { Button, Field, KV, Note, Section, StatusText, inputCls } from '../ui/pr
 type Tab = 'area' | 'event'
 
 export function VenueMapScreen() {
-  const [tab, setTab] = useState<Tab>('area')
+  // `#/venue/event` opens the simulated-event tab directly (handy for briefings and links).
+  const [tab, setTab] = useState<Tab>(() => (window.location.hash.split('/')[2] === 'event' ? 'event' : 'area'))
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-10 shrink-0 items-end gap-1 border-b border-line bg-panel px-4" role="tablist">
@@ -35,12 +36,12 @@ export function VenueMapScreen() {
 type Tool = 'select' | 'obstacle' | 'zone' | 'exit' | 'walkable'
 type Sel = { kind: 'obstacle' | 'zone' | 'portal'; id: string } | null
 
-const TOOLS: { id: Tool; label: string; hint: string }[] = [
-  { id: 'select', label: 'Select', hint: 'Click an item on the map or in the list to edit it.' },
-  { id: 'zone', label: 'Zone', hint: 'Drag a rectangle to add a zone people are counted in.' },
-  { id: 'obstacle', label: 'Obstacle', hint: 'Drag a rectangle over a wall, stage, barrier or kiosk.' },
-  { id: 'exit', label: 'Exit', hint: 'Drag along a doorway to add an exit.' },
-  { id: 'walkable', label: 'Walkable area', hint: 'Drag the outline of the floor people can use.' },
+const TOOLS: { id: Tool; label: string; hint: string; icon: LucideIcon }[] = [
+  { id: 'select', label: 'Select', hint: 'Click an item on the map or in the list to edit it.', icon: MousePointer2 },
+  { id: 'zone', label: 'Zone', hint: 'Drag a rectangle to add a zone people are counted in.', icon: Square },
+  { id: 'obstacle', label: 'Obstacle', hint: 'Drag a rectangle over a wall, stage, barrier or kiosk.', icon: Ban },
+  { id: 'exit', label: 'Exit', hint: 'Drag along a doorway to add an exit.', icon: DoorOpen },
+  { id: 'walkable', label: 'Floor', hint: 'Drag the outline of the floor people can walk on.', icon: Scan },
 ]
 
 function toConfig(g: SiteGeometry): SiteConfig {
@@ -140,7 +141,7 @@ function AreaEditor() {
             {TOOLS.map((t) => (
               <button key={t.id} type="button" onClick={() => setTool(t.id)} aria-pressed={tool === t.id}
                 className={cx('flex h-8 items-center gap-1.5 rounded-[5px] border px-2 text-[13px]', tool === t.id ? 'border-accent bg-raised text-ink' : 'border-line text-ink-2 hover:text-ink')}>
-                {t.id === 'select' ? <MousePointer2 className="size-3.5" /> : <Square className="size-3.5" />}{t.label}
+                <t.icon className="size-3.5" aria-hidden />{t.label}
               </button>
             ))}
           </div>
@@ -276,7 +277,7 @@ function EventModel() {
               <KV rows={[
                 ['Estimate range', r.estimate == null ? 'unknown' : `${fmtInt(r.lower)} to ${fmtInt(r.upper)}`],
                 ['Safe capacity', fmtInt(r.safe_capacity)], ['Occupancy', r.occupancy_pct == null ? 'unknown' : `${r.occupancy_pct}%`],
-                ['Camera feed', r.feed_status === 'ok' ? 'live (simulated)' : r.feed_status],
+                ['Simulated feed', r.feed_status === 'ok' ? 'reporting' : r.feed_status.replace(/_/g, ' ')],
                 ['In 15 minutes', fc?.available ? `${fc.predicted_end_pct}% (${fc.method})` : '—'],
                 ['Reaches capacity', fc?.available ? (fc.current_pct >= 100 ? 'already above' : fc.minutes_to_capacity ? `in about ${fc.minutes_to_capacity} min` : 'not within 15 min') : '—'],
               ]} />

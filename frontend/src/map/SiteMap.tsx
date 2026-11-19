@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 
 import { useTheme } from '../lib/theme'
 import type { Layers } from '../live/context'
@@ -27,7 +27,6 @@ const CELL_PX = 8 // canvas pixels per grid cell for the state layer (enough for
  *  movement and the route. Everything drawn comes from the latest backend snapshot. */
 export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint, onPickPoint, onPointer, overlay, compact }: Props) {
   const { resolved } = useTheme()
-  const wrap = useRef<HTMLDivElement>(null)
   const cellCanvas = useRef<HTMLCanvasElement>(null)
   const heatCanvas = useRef<HTMLCanvasElement>(null)
   const [box, setBox] = useState({ w: 0, h: 0 })
@@ -35,15 +34,18 @@ export function SiteMap({ site, snapshot, layers, selection, onSelect, pickPoint
   const W = site.width_m
   const H = site.height_m
 
-  useEffect(() => {
-    const el = wrap.current
+  // Fit the site's aspect ratio into the available space: measured once on mount (so the map appears on the
+  // first frame) and again whenever the container is resized.
+  const wrap = useCallback((el: HTMLDivElement | null) => {
     if (!el) return undefined
-    const ro = new ResizeObserver(([e]) => {
-      const cw = e.contentRect.width
-      const ch = e.contentRect.height
+    const fit = (cw: number, ch: number) => {
+      if (!cw || !ch) return
       const s = Math.min(cw / W, ch / H)
       setBox({ w: Math.floor(W * s), h: Math.floor(H * s) })
-    })
+    }
+    const r = el.getBoundingClientRect()
+    fit(r.width, r.height)
+    const ro = new ResizeObserver(([e]) => fit(e.contentRect.width, e.contentRect.height))
     ro.observe(el)
     return () => ro.disconnect()
   }, [W, H])

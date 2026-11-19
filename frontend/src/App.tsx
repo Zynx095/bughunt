@@ -7,9 +7,9 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { DomainBadgeIcon } from './components/domainIcon'
 import { ErrorBox, Spinner } from './components/ui'
 import { cx } from './lib/cx'
-import { AppContext, type AppState } from './context'
+import { AppContext, type AppState, type ThemePreference } from './context'
 import { get, loadIdentity, saveIdentity, send, setApiIdentity, type Identity } from './lib/api'
-import type { DomainInfo, SectionId, SettingsView } from './lib/types'
+import type { DomainInfo, Health, SectionId, SettingsView } from './lib/types'
 import { AnalyticsPage } from './sections/Analytics'
 import { ApprovalsPage } from './sections/Approvals'
 import { AuditPage } from './sections/Audit'
@@ -45,6 +45,22 @@ export default function App() {
   const [identity, setIdentityState] = useState<Identity>(loadIdentity)
   const [bootError, setBootError] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [theme, setTheme] = useState<ThemePreference>('system')
+  const [health, setHealth] = useState<Health | null>(null)
+  const [pendingApprovalsCount] = useState<number>(0)
+
+  const refreshHealth = useCallback(async () => {
+    try {
+      const h = await get<Health>('/api/health')
+      setHealth(h)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshHealth()
+  }, [refreshHealth])
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash())
@@ -78,7 +94,20 @@ export default function App() {
   const visible = useMemo(() => NAV.filter((n) => !active || active.sections.includes(n.id)), [active])
   const section = active && !active.sections.includes(route.section) ? 'overview' : route.section
 
-  const state: AppState = { domains, active, setActiveDomain, identity, setIdentity, navigate, param: route.param }
+  const state: AppState = {
+    domains,
+    active,
+    setActiveDomain,
+    identity,
+    setIdentity,
+    navigate,
+    param: route.param,
+    theme,
+    setTheme,
+    health,
+    pendingApprovalsCount,
+    refreshHealth,
+  }
   const accent = { '--accent': active?.color ?? '#2a78d6' } as CSSProperties
 
   if (bootError) {

@@ -1,0 +1,286 @@
+{
+  "training": [
+    {
+      "text": "Smoke coming out of the kitchen window, flames visible",
+      "category": "fire"
+    },
+    {
+      "text": "Building on fire, people still inside",
+      "category": "fire"
+    },
+    {
+      "text": "Car caught fire on the motorway hard shoulder",
+      "category": "fire"
+    },
+    {
+      "text": "Strong smell of burning from the flat next door, smoke alarm going",
+      "category": "fire"
+    },
+    {
+      "text": "Grass fire spreading towards houses",
+      "category": "fire"
+    },
+    {
+      "text": "Bins on fire behind the supermarket",
+      "category": "fire"
+    },
+    {
+      "text": "Electrical fire in the server room, smoke everywhere",
+      "category": "fire"
+    },
+    {
+      "text": "Flames coming from the roof of the warehouse",
+      "category": "fire"
+    },
+    {
+      "text": "Chip pan fire, kitchen full of smoke",
+      "category": "fire"
+    },
+    {
+      "text": "Black smoke pouring out of a garage",
+      "category": "fire"
+    },
+    {
+      "text": "Shed on fire in the back garden, spreading to the fence",
+      "category": "fire"
+    },
+    {
+      "text": "Fire in the stairwell of the tower block",
+      "category": "fire"
+    },
+    {
+      "text": "Man collapsed and is not breathing",
+      "category": "medical"
+    },
+    {
+      "text": "Elderly woman fell down the stairs, bleeding from the head",
+      "category": "medical"
+    },
+    {
+      "text": "My father has chest pain and is sweating",
+      "category": "medical"
+    },
+    {
+      "text": "Child having a seizure",
+      "category": "medical"
+    },
+    {
+      "text": "Someone unconscious at the bus stop",
+      "category": "medical"
+    },
+    {
+      "text": "Allergic reaction, throat swelling, can't breathe properly",
+      "category": "medical"
+    },
+    {
+      "text": "Pregnant woman in labour, contractions very close",
+      "category": "medical"
+    },
+    {
+      "text": "Diabetic neighbour confused and shaking",
+      "category": "medical"
+    },
+    {
+      "text": "Man fainted in the shop and hit his head",
+      "category": "medical"
+    },
+    {
+      "text": "My wife is having a stroke, her face is drooping",
+      "category": "medical"
+    },
+    {
+      "text": "Overdose, friend not responding",
+      "category": "medical"
+    },
+    {
+      "text": "Elderly man fell in the bathroom and can't get up",
+      "category": "medical"
+    },
+    {
+      "text": "Two cars collided at the junction, one on its roof",
+      "category": "traffic"
+    },
+    {
+      "text": "Lorry jackknifed blocking all lanes",
+      "category": "traffic"
+    },
+    {
+      "text": "Cyclist hit by a van",
+      "category": "traffic"
+    },
+    {
+      "text": "Traffic lights out at the main crossroads, cars nearly crashing",
+      "category": "traffic"
+    },
+    {
+      "text": "Motorbike crash, rider on the ground",
+      "category": "traffic"
+    },
+    {
+      "text": "Bus slid off the road in the ice",
+      "category": "traffic"
+    },
+    {
+      "text": "Multiple vehicle pile-up in fog on the motorway",
+      "category": "traffic"
+    },
+    {
+      "text": "Car crashed into a lamp post, driver dazed",
+      "category": "traffic"
+    },
+    {
+      "text": "Van and car collision at the roundabout",
+      "category": "traffic"
+    },
+    {
+      "text": "Pedestrian knocked down by a car on the high street",
+      "category": "traffic"
+    },
+    {
+      "text": "Broken-down lorry in the fast lane of the motorway",
+      "category": "traffic"
+    },
+    {
+      "text": "Car upside down in a ditch after a crash",
+      "category": "traffic"
+    },
+    {
+      "text": "Someone breaking into the car outside",
+      "category": "crime"
+    },
+    {
+      "text": "Man threatening people with a knife",
+      "category": "crime"
+    },
+    {
+      "text": "Shop being robbed right now",
+      "category": "crime"
+    },
+    {
+      "text": "I can hear a fight and screaming next door",
+      "category": "crime"
+    },
+    {
+      "text": "Burglar in my house, hiding upstairs",
+      "category": "crime"
+    },
+    {
+      "text": "Person with a gun outside the school",
+      "category": "crime"
+    },
+    {
+      "text": "Stolen car being driven dangerously",
+      "category": "crime"
+    },
+    {
+      "text": "Group fighting outside the pub, one has a bottle",
+      "category": "crime"
+    },
+    {
+      "text": "Someone smashed the window and stole my bag",
+      "category": "crime"
+    },
+    {
+      "text": "Man following me and threatening me",
+      "category": "crime"
+    },
+    {
+      "text": "Drunk man assaulting people at the station",
+      "category": "crime"
+    },
+    {
+      "text": "Teenagers vandalising cars and threatening residents",
+      "category": "crime"
+    },
+    {
+      "text": "Gas smell in the street, very strong",
+      "category": "hazard"
+    },
+    {
+      "text": "Chemical spill from a tanker",
+      "category": "hazard"
+    },
+    {
+      "text": "Power line down on the pavement sparking",
+      "category": "hazard"
+    },
+    {
+      "text": "River flooding into houses",
+      "category": "hazard"
+    },
+    {
+      "text": "Tree fallen across the road after the storm",
+      "category": "hazard"
+    },
+    {
+      "text": "Suspicious package left at the station",
+      "category": "hazard"
+    },
+    {
+      "text": "Water main burst, road collapsing",
+      "category": "hazard"
+    },
+    {
+      "text": "Strong smell of gas in the block of flats",
+      "category": "hazard"
+    },
+    {
+      "text": "Large tree branch down blocking the lane",
+      "category": "hazard"
+    },
+    {
+      "text": "Flood water rising in the underpass",
+      "category": "hazard"
+    },
+    {
+      "text": "Loose scaffolding swinging in the wind over the street",
+      "category": "hazard"
+    },
+    {
+      "text": "Leaking gas cylinder at the market",
+      "category": "hazard"
+    }
+  ],
+  "incidents": [
+    {
+      "id": "INC-301",
+      "received_at": "2026-11-18T21:04:00",
+      "caller_text": "There's thick smoke on the third floor and a family with two children is trapped, call back on +44 20 7946 0958"
+    },
+    {
+      "id": "INC-302",
+      "received_at": "2026-11-18T21:06:00",
+      "caller_text": "Bins are smouldering behind the community centre, nobody around"
+    },
+    {
+      "id": "INC-303",
+      "received_at": "2026-11-18T21:07:00",
+      "caller_text": "My husband collapsed in the kitchen and he is not breathing"
+    },
+    {
+      "id": "INC-304",
+      "received_at": "2026-11-18T21:09:00",
+      "caller_text": "Van and a car crashed at the roundabout, drivers are out and walking, road partly blocked"
+    },
+    {
+      "id": "INC-305",
+      "received_at": "2026-11-18T21:10:00",
+      "caller_text": "A man is waving a knife at people outside the pub"
+    },
+    {
+      "id": "INC-306",
+      "received_at": "2026-11-18T21:12:00",
+      "caller_text": "Strong gas smell near the primary school gates"
+    },
+    {
+      "id": "INC-307",
+      "received_at": "2026-11-18T21:15:00",
+      "caller_text": "Tree branch fell on a parked car, no one hurt"
+    },
+    {
+      "id": "INC-308",
+      "received_at": "2026-11-18T21:16:00",
+      "caller_text": "Elderly neighbour fell and can't get up, she is conscious but in pain"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "case_id": "CASE-2026-0147",
+  "examiner": "examiner.k.rao",
+  "evidence": [
+    {
+      "name": "chat_export_excerpt.txt",
+      "content": "[2026-11-02 22:14] user_a: payment sent to bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh\n[2026-11-02 22:15] user_b: confirmed, deleting logs now"
+    },
+    {
+      "name": "firewall_extract.log",
+      "content": "2026-11-02T22:16:03Z DENY TCP 203.0.113.45:51544 -> 10.0.4.12:22\n2026-11-02T22:16:09Z ALLOW TCP 198.51.100.7:443 -> 10.0.4.12:8443\n2026-11-02T22:17:40Z ALLOW TCP 10.0.4.12:50122 -> 192.0.2.99:4444"
+    },
+    {
+      "name": "email_headers.eml",
+      "content": "Received: from mail.unknown-relay.example (192.0.2.99)\nFrom: \"Accounts\" <billing@acme-invoices.example>\nReply-To: payouts@mailbox.example\nSubject: Invoice 99812\nX-Mailer: PHPMailer 5.2.1"
+    },
+    {
+      "name": "analyst_note.md",
+      "content": "Suspicious binary dropper.exe sha256 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 observed; references CVE-2024-3400. Contact on file: +1 202 555 0147."
+    }
+  ],
+  "tamper_check": {
+    "index": 1,
+    "altered_content": "2026-11-02T22:16:03Z DENY TCP 203.0.113.45:51544 -> 10.0.4.12:22\n(lines removed)"
+  }
+}

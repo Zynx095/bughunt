@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.api.crowdguard_routes import router as crowdguard_router
 from app.api.routes import router
 from app.config import Settings, get_settings
 from app.services import build_services
@@ -45,6 +46,7 @@ def create_app(settings: Settings | None = None, serve_frontend: bool = True) ->
         return response
 
     app.include_router(router)
+    app.include_router(crowdguard_router)
     if serve_frontend and FRONTEND_DIST.is_dir():
         app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
     return app

@@ -35,7 +35,7 @@ export function useCrowd(): CrowdState {
 }
 
 export const BAND_COLOR: Record<string, string> = {
-  normal: '#10b981', elevated: '#f59e0b', high: '#f97316', critical: '#ef4444', unknown: '#71717a',
+  normal: 'var(--color-normal)', elevated: 'var(--color-elevated)', high: 'var(--color-high)', critical: 'var(--color-critical)', unknown: 'var(--color-unknown)',
 }
 
 export const BAND_LABEL: Record<string, string> = {

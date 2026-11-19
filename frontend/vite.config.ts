@@ -7,15 +7,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
-    proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true } },
+    proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true, ws: true } },
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks(id: string) {
-          if (id.includes('node_modules/recharts') || id.includes('node_modules/victory-vendor') || id.includes('node_modules/d3-')) {
-            return 'vendor-charts'
-          }
           if (id.includes('node_modules/lucide-react')) {
             return 'vendor-icons'
           }

@@ -24,9 +24,9 @@ interface Props {
 }
 
 function utilColour(u: number): string {
-  if (u >= 0.9) return '#ef4444'
-  if (u >= 0.7) return '#f59e0b'
-  return '#38bdf8'
+  if (u >= 0.9) return '#c8392f'
+  if (u >= 0.7) return '#c99418'
+  return '#7d8a86'
 }
 
 /** Schematic venue map: zone polygons by risk band (with text labels, never colour alone), corridor flows,
@@ -39,7 +39,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
   const routePts = (r: RouteOption) => r.path.map((n) => pos[n]).filter(Boolean).map((p) => p.join(',')).join(' ')
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl border border-line bg-surface">
+    <div className="relative w-full overflow-hidden rounded-[6px] border border-line bg-raised">
       {label && <div className="border-b border-line px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</div>}
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img"
         aria-label="Venue map showing zones, occupancy, flows, exits and routes">
@@ -51,7 +51,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
           <pattern id="cg-grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--color-line)" strokeWidth="1" />
           </pattern>
-          {['#38bdf8', '#f59e0b', '#ef4444'].map((c) => (
+          {['#7d8a86', '#c99418', '#c8392f'].map((c) => (
             <marker key={c} id={`cg-arrow-${c.slice(1)}`} viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill={c} />
             </marker>
@@ -74,8 +74,8 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
               {onToggleEdge && <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="transparent" strokeWidth={18} />}
               {blocked && (
                 <>
-                  <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#ef4444" strokeWidth={3} strokeDasharray="6 5" />
-                  <text x={mx} y={my + 5} textAnchor="middle" fontSize="16" fontWeight="700" fill="#ef4444">✖</text>
+                  <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="var(--color-critical)" strokeWidth={3} strokeDasharray="6 5" />
+                  <text x={mx} y={my + 5} textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--color-critical)">✖</text>
                 </>
               )}
             </g>
@@ -130,12 +130,12 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
         ))}
         {route && (
           <g>
-            <polyline points={routePts(route)} fill="none" stroke="#0ea5e9" strokeOpacity={0.25} strokeWidth={14} strokeLinejoin="round" strokeLinecap="round" />
-            <polyline points={routePts(route)} fill="none" stroke="#0ea5e9" strokeWidth={5} strokeDasharray="12 7" strokeLinejoin="round" strokeLinecap="round" className="cg-flow" />
-            {pos[route.path[0]] && <circle cx={pos[route.path[0]][0]} cy={pos[route.path[0]][1]} r={6} fill="#0ea5e9" stroke="white" strokeWidth={2} />}
+            <polyline points={routePts(route)} fill="none" stroke="var(--color-accent-2)" strokeOpacity={0.25} strokeWidth={14} strokeLinejoin="round" strokeLinecap="round" />
+            <polyline points={routePts(route)} fill="none" stroke="var(--color-accent-2)" strokeWidth={5} strokeDasharray="12 7" strokeLinejoin="round" strokeLinecap="round" className="cg-flow" />
+            {pos[route.path[0]] && <circle cx={pos[route.path[0]][0]} cy={pos[route.path[0]][1]} r={6} fill="var(--color-accent-2)" stroke="white" strokeWidth={2} />}
             {pos[route.destination] && (
               <g>
-                <circle cx={pos[route.destination][0]} cy={pos[route.destination][1]} r={11} fill="white" stroke="#0ea5e9" strokeWidth={4} />
+                <circle cx={pos[route.destination][0]} cy={pos[route.destination][1]} r={11} fill="white" stroke="var(--color-accent-2)" strokeWidth={4} />
                 <text x={pos[route.destination][0]} y={pos[route.destination][1] + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#0369a1">{route.id}</text>
               </g>
             )}
@@ -151,7 +151,7 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
           const [cx, cy] = z.centroid
           const small = z.area_m2 < 900 || compact
           return (
-            <g key={z.id} pointerEvents="none" stroke="var(--color-surface)" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
+            <g key={z.id} pointerEvents="none" stroke="var(--color-raised)" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
               <text x={cx} y={cy - (small ? 14 : 26)} textAnchor="middle" fontSize={small ? 11 : 13} fontWeight="600" fill="var(--color-ink)">{z.name}</text>
               {r?.estimate != null ? (
                 <>
@@ -176,11 +176,11 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
         {venue.nodes.filter((n) => n.kind !== 'zone').map((n) => {
           const [x, y] = n.pos
           if (n.kind === 'junction') {
-            return <g key={n.id}><title>{n.name}</title><circle cx={x} cy={y} r={7} fill="var(--color-surface)" stroke="var(--color-ink-2)" strokeWidth={2} /></g>
+            return <g key={n.id}><title>{n.name}</title><circle cx={x} cy={y} r={7} fill="var(--color-raised)" stroke="var(--color-ink-2)" strokeWidth={2} /></g>
           }
           const blocked = exitStatus[n.id] === 'blocked' || blockedNodes?.has(n.id)
           const emergency = !!n.emergency_exit
-          const fill = blocked ? '#ef4444' : emergency ? '#16a34a' : '#475569'
+          const fill = blocked ? 'var(--color-critical)' : emergency ? 'var(--color-accent)' : '#5c6461'
           const text = emergency ? n.name.replace('Emergency Exit ', '') : n.name
           const w = Math.max(54, text.length * 6.6 + 18)
           const vertical = x < 40 || x > W - 40
@@ -209,9 +209,9 @@ export function VenueMap({ venue, readings, edgeFlows = [], exitStatus = {}, rou
             <span key={b} className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm" style={{ background: BAND_COLOR[b] }} aria-hidden />{BAND_MARK[b]} {BAND_LABEL[b]}</span>
           ))}
           <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm" style={{ background: 'repeating-linear-gradient(45deg,#71717a55 0 3px,transparent 3px 6px)' }} aria-hidden />No live feed (unknown ≠ empty)</span>
-          {showFlows && <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-4" style={{ background: '#38bdf8' }} aria-hidden />Flow (amber ≥70%, red ≥90% of corridor capacity)</span>}
-          <span className="flex items-center gap-1"><span className="inline-block h-1 w-4 rounded" style={{ background: '#0ea5e9' }} aria-hidden />Recommended route</span>
-          <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-[#16a34a]" aria-hidden />Emergency exit</span>
+          {showFlows && <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-4" style={{ background: '#7d8a86' }} aria-hidden />Flow (amber ≥70%, red ≥90% of corridor capacity)</span>}
+          <span className="flex items-center gap-1"><span className="inline-block h-1 w-4 rounded" style={{ background: 'var(--color-accent-2)' }} aria-hidden />Recommended route</span>
+          <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-accent" aria-hidden />Emergency exit</span>
         </div>
       )}
     </div>

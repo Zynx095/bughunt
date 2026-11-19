@@ -32,3 +32,18 @@ export function fmtValue(v: unknown): string {
 export const short = (s: string | null | undefined, n = 12) => (s ? (s.length > n ? `${s.slice(0, n)}…` : s) : '—')
 
 export const titleCase = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+export function fmtClock(epochSeconds: number | null | undefined, withMs = false): string {
+  if (!epochSeconds) return '—'
+  const d = new Date(epochSeconds * 1000)
+  const t = d.toLocaleTimeString(undefined, { hour12: false })
+  return withMs ? `${t}.${String(d.getMilliseconds()).padStart(3, '0')}` : t
+}
+
+export function fmtAgo(epochSeconds: number, now = Date.now() / 1000): string {
+  const s = Math.max(0, now - epochSeconds)
+  if (s < 60) return `${Math.round(s)} s ago`
+  if (s < 3600) return `${Math.round(s / 60)} min ago`
+  return `${Math.round(s / 3600)} h ago`
+}
+

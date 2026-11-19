@@ -1,0 +1,89 @@
+{
+  "id": "riverside-festival",
+  "name": "Riverside Open-Air Festival (fictional demo venue)",
+  "synthetic": true,
+  "canvas": {"width": 1000, "height": 640, "units": "schematic (not to scale)"},
+  "start_clock": "18:00",
+  "tick_seconds": 60,
+  "thresholds": {
+    "elevated_pct": 70,
+    "high_pct": 85,
+    "critical_pct": 100,
+    "density_warn": 3.5,
+    "density_critical": 4.5,
+    "growth_pct_per_min": 2.0,
+    "growth_min_occupancy_pct": 50,
+    "queue_wait_min": 10,
+    "slow_speed_mps": 0.45,
+    "slow_density": 1.5,
+    "bottleneck_utilisation": 0.9,
+    "stale_after_s": 90,
+    "min_confidence": 0.45,
+    "forecast_horizon_min": 15,
+    "target_relief_pct": 80,
+    "destination_max_pct": 85
+  },
+  "zones": [
+    {"id": "north_plaza", "name": "North Entrance Plaza", "kind": "entrance_plaza", "area_m2": 1400, "safe_capacity": 2000,
+     "camera_id": "CAM-NP", "polygon": [[390, 40], [610, 40], [610, 120], [390, 120]]},
+    {"id": "main_stage", "name": "Main Stage Arena", "kind": "stage", "area_m2": 4500, "safe_capacity": 9000,
+     "camera_id": "CAM-MS", "polygon": [[300, 175], [700, 175], [700, 395], [300, 395]]},
+    {"id": "west_concourse", "name": "West Concourse", "kind": "concourse", "area_m2": 1800, "safe_capacity": 2700,
+     "camera_id": "CAM-WC", "polygon": [[40, 60], [250, 60], [250, 470], [40, 470]]},
+    {"id": "east_concourse", "name": "East Concourse", "kind": "concourse", "area_m2": 1500, "safe_capacity": 2250,
+     "camera_id": "CAM-EC", "polygon": [[750, 60], [960, 60], [960, 330], [750, 330]]},
+    {"id": "food_court", "name": "Food Court", "kind": "amenity", "area_m2": 2000, "safe_capacity": 3000,
+     "camera_id": "CAM-FC", "polygon": [[270, 450], [470, 450], [470, 610], [270, 610]]},
+    {"id": "bar_queue", "name": "Bar & Merch Queue", "kind": "queue", "area_m2": 400, "safe_capacity": 600,
+     "camera_id": "CAM-BQ", "service_rate_ppm": 40, "polygon": [[540, 450], [690, 450], [690, 525], [540, 525]]},
+    {"id": "second_stage", "name": "Second Stage", "kind": "stage", "area_m2": 3000, "safe_capacity": 6000,
+     "camera_id": "CAM-SS", "polygon": [[750, 370], [960, 370], [960, 600], [750, 600]]},
+    {"id": "south_plaza", "name": "South Entrance Plaza", "kind": "entrance_plaza", "area_m2": 1000, "safe_capacity": 1500,
+     "camera_id": "CAM-SP", "polygon": [[540, 550], [700, 550], [700, 612], [540, 612]]}
+  ],
+  "nodes": [
+    {"id": "gate_north", "name": "North Gate", "kind": "gate", "pos": [500, 16], "entrance": true, "exit": true, "emergency_exit": false},
+    {"id": "gate_south", "name": "South Gate", "kind": "gate", "pos": [620, 630], "entrance": true, "exit": true, "emergency_exit": false},
+    {"id": "exit_west", "name": "West Emergency Exit W1", "kind": "exit", "pos": [14, 300], "entrance": false, "exit": true, "emergency_exit": true},
+    {"id": "exit_east", "name": "East Emergency Exit E1", "kind": "exit", "pos": [986, 195], "entrance": false, "exit": true, "emergency_exit": true},
+    {"id": "j_north", "name": "North Junction", "kind": "junction", "pos": [500, 150]},
+    {"id": "j_south", "name": "South Junction", "kind": "junction", "pos": [500, 425]}
+  ],
+  "edges": [
+    {"id": "e_gn_np", "a": "gate_north", "b": "north_plaza", "length_m": 20, "width_m": 12, "kind": "gate"},
+    {"id": "e_np_jn", "a": "north_plaza", "b": "j_north", "length_m": 30, "width_m": 10, "kind": "corridor"},
+    {"id": "e_jn_ms", "a": "j_north", "b": "main_stage", "length_m": 25, "width_m": 6, "kind": "corridor"},
+    {"id": "e_jn_wc", "a": "j_north", "b": "west_concourse", "length_m": 60, "width_m": 6, "kind": "corridor"},
+    {"id": "e_jn_ec", "a": "j_north", "b": "east_concourse", "length_m": 60, "width_m": 6, "kind": "corridor"},
+    {"id": "e_wc_ms", "a": "west_concourse", "b": "main_stage", "length_m": 40, "width_m": 4, "kind": "corridor"},
+    {"id": "e_ec_ms", "a": "east_concourse", "b": "main_stage", "length_m": 40, "width_m": 4, "kind": "corridor"},
+    {"id": "e_wc_fc", "a": "west_concourse", "b": "food_court", "length_m": 50, "width_m": 6, "kind": "corridor"},
+    {"id": "e_wc_xw", "a": "west_concourse", "b": "exit_west", "length_m": 15, "width_m": 4, "kind": "exit"},
+    {"id": "e_ec_xe", "a": "east_concourse", "b": "exit_east", "length_m": 15, "width_m": 4, "kind": "exit"},
+    {"id": "e_ec_ss", "a": "east_concourse", "b": "second_stage", "length_m": 50, "width_m": 6, "kind": "corridor"},
+    {"id": "e_ms_js", "a": "main_stage", "b": "j_south", "length_m": 25, "width_m": 6, "kind": "corridor"},
+    {"id": "e_js_fc", "a": "j_south", "b": "food_court", "length_m": 30, "width_m": 8, "kind": "corridor"},
+    {"id": "e_js_bq", "a": "j_south", "b": "bar_queue", "length_m": 15, "width_m": 4, "kind": "corridor"},
+    {"id": "e_js_ss", "a": "j_south", "b": "second_stage", "length_m": 60, "width_m": 6, "kind": "corridor"},
+    {"id": "e_js_sp", "a": "j_south", "b": "south_plaza", "length_m": 40, "width_m": 8, "kind": "corridor"},
+    {"id": "e_sp_gs", "a": "south_plaza", "b": "gate_south", "length_m": 20, "width_m": 10, "kind": "gate"},
+    {"id": "e_fc_bq", "a": "food_court", "b": "bar_queue", "length_m": 20, "width_m": 4, "kind": "corridor"}
+  ],
+  "camera_layouts": {
+    "default_two_zone": {
+      "description": "Generic camera split into a left and right ground zone (normalised image coordinates). Edit the polygons and areas to match the real camera view.",
+      "meters_per_pixel": null,
+      "zones": [
+        {"id": "cam_left", "name": "Camera zone A (left)", "polygon": [[0, 0.25], [0.5, 0.25], [0.5, 1], [0, 1]], "area_m2": 60, "safe_capacity": 120},
+        {"id": "cam_right", "name": "Camera zone B (right)", "polygon": [[0.5, 0.25], [1, 0.25], [1, 1], [0.5, 1]], "area_m2": 60, "safe_capacity": 120}
+      ]
+    },
+    "single_zone": {
+      "description": "Whole frame below the horizon line as one zone.",
+      "meters_per_pixel": null,
+      "zones": [
+        {"id": "cam_all", "name": "Camera field of view", "polygon": [[0, 0.2], [1, 0.2], [1, 1], [0, 1]], "area_m2": 120, "safe_capacity": 240}
+      ]
+    }
+  }
+}

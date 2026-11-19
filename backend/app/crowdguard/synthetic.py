@@ -50,6 +50,8 @@ class SyntheticAgent:
         # Color seed for visual variety in camera view
         rng = random.Random(color_seed + agent_id)
         self.clothing_color = (rng.randint(60, 220), rng.randint(60, 220), rng.randint(60, 220))
+        # Per-agent seeded generator: wander targets are reproducible run to run.
+        self.rng = random.Random(10_000 + agent_id)
 
     def step(self, neighbors: List[SyntheticAgent], dt: float = 0.1, constrict_x: Optional[Tuple[float, float]] = None):
         """Advances agent state using social force model heuristics."""
@@ -105,7 +107,7 @@ class SyntheticAgent:
 
     def _pick_new_target(self, cur_x: float, cur_y: float) -> Tuple[float, float]:
         # Return to opposite corridor or plaza
-        return (random.uniform(80.0, 720.0), random.uniform(80.0, 520.0))
+        return (self.rng.uniform(80.0, 720.0), self.rng.uniform(80.0, 520.0))
 
 
 class SyntheticDemonstrationEngine:

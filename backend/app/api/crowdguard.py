@@ -11,7 +11,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
+import asyncio
+
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response
 
 from app.core.contracts import ExecutionContext
@@ -268,3 +270,120 @@ def media_job(job_id: str):
     if job["status"] in ("completed", "failed"):
         out["response"] = job["response"]
     return out
+
+
+# ------------------------------------------------------------------ real-time monitoring
+@router.get("/live/status")
+def live_status(svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_status", {})
+
+
+@router.get("/live/cameras")
+def live_cameras(max_index: int = 3, svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_cameras", {"max_index": max_index})
+
+
+@router.post("/live/start")
+def live_start(payload: dict[str, Any] = Body(...), svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_start", payload)
+
+
+@router.post("/live/stop")
+def live_stop(svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_stop", {})
+
+
+@router.get("/live/site")
+def live_site(svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_site", {})
+
+
+@router.put("/live/site")
+def live_site_update(payload: dict[str, Any] = Body(...), svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_site_update", payload)
+
+
+@router.post("/live/calibration")
+def live_calibrate(payload: dict[str, Any] = Body(...), svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_calibrate", payload)
+
+
+@router.post("/live/origin")
+def live_origin(payload: dict[str, Any] = Body(...), svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_origin", payload)
+
+
+@router.post("/live/portals")
+def live_portal(payload: dict[str, Any] = Body(...), svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_portal", payload)
+
+
+@router.get("/live/alerts")
+def live_alerts(limit: int = 100, svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    return _envelope(svc, ctx, "live_alerts", {"limit": limit})
+
+
+@router.post("/live/recordings")
+async def live_upload_recording(file: UploadFile = File(...), svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    """Store a video for playback through the live pipeline (it is labelled as a recording, never as live)."""
+    require(svc, ctx, "data:write")
+    limit = svc.settings.crowd_max_video_mb * 1024 * 1024
+    data = await file.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(413, f"File exceeds {svc.settings.crowd_max_video_mb} MB")
+    if not data or sniff_media(data[:16]) != "video":
+        raise HTTPException(415, "Upload a video file (MP4/MOV, WebM/MKV or AVI)")
+    doc = _store_media(svc, ctx, _safe_name(file.filename or "recording.mp4"), data, "video")
+    return {k: doc[k] for k in ("id", "filename", "sha256", "size", "kind")}
+
+
+@router.post("/live/recordings/sample")
+def live_sample_recording(svc: Services = Depends(services), ctx: ExecutionContext = Depends(context)):
+    require(svc, ctx, "data:write")
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "crowdguard_test_clip.mp4"
+        try:
+            prov = make_sample_clip(out)
+        except (FileNotFoundError, RuntimeError) as exc:
+            raise HTTPException(503, f"Sample clip unavailable: {exc}") from exc
+        data = out.read_bytes()
+    doc = _store_media(svc, ctx, "crowdguard_test_clip.mp4", data, "video")
+    return {**{k: doc[k] for k in ("id", "filename", "sha256", "size", "kind")}, "provenance": prov}
+
+
+@router.get("/live/recordings")
+def live_recordings(svc: Services = Depends(services)):
+    return [{k: d[k] for k in ("id", "filename", "size", "created_at")} for d in svc.store.list_documents() if d["kind"] == "video"]
+
+
+@router.websocket("/live/ws")
+async def live_ws(ws: WebSocket, frames: int = 0):
+    """Snapshots (and optionally reduced-size frames) as they are produced. Each client always gets the
+    newest message of each type; a slow client skips intermediate ones instead of building a backlog."""
+    await ws.accept()
+    monitor = ws.app.state.services.registry.get("crowd").live
+    sub = monitor.subscribe(asyncio.get_running_loop(), frames=bool(frames))
+    receiver = asyncio.create_task(ws.receive_text())
+    try:
+        await ws.send_text(monitor.hello())
+        while True:
+            waiter = asyncio.create_task(sub.event.wait())
+            done, _ = await asyncio.wait({waiter, receiver}, return_when=asyncio.FIRST_COMPLETED)
+            if receiver in done:
+                waiter.cancel()
+                try:
+                    receiver.result()
+                except (WebSocketDisconnect, RuntimeError):
+                    break
+                receiver = asyncio.create_task(ws.receive_text())  # client messages are ignored (keep-alive)
+                continue
+            sub.event.clear()
+            for kind in ("status", "snapshot", "frame"):
+                text = sub.slots.pop(kind, None)
+                if text is not None:
+                    await ws.send_text(text)
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
+        receiver.cancel()
+        monitor.unsubscribe(sub)

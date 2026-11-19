@@ -31,6 +31,9 @@ def create_app(settings: Settings | None = None, serve_frontend: bool = True) ->
         app.state.services.store.audit("system", "startup", detail={"version": settings.version,
                                                                     "engines": app.state.services.registry.names()})
         yield
+        crowd = app.state.services.registry.get("crowd")
+        if crowd is not None:
+            crowd.live.stop()  # release cameras and stop capture threads
         app.state.services.store.engine.dispose()
 
     app = FastAPI(title=f"{settings.app_name} API", version=settings.version, lifespan=lifespan,

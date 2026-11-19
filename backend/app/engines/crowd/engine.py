@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from app.core.contracts import EngineError, ExecutionContext, OpResult
 from app.core.engine import BaseEngine, operation
 from app.crowdguard.analysis import analyse_snapshot
+from app.crowdguard.camera_sources import SourceError, build_source, discover_cameras
 from app.crowdguard.congestion_detector import Evaluator, local_evaluator
 from app.crowdguard.crowd_detection import find_weights, get_detector
 from app.crowdguard.crowd_forecaster import forecast_zone, rolling_backtest
@@ -27,6 +28,8 @@ from app.crowdguard.media_analysis import analyse_media
 from app.crowdguard.route_optimizer import RouteOptimizer, RouteState
 from app.crowdguard.safety_recommendations import DISCLAIMER
 from app.crowdguard.simulation import ScenarioConfig, run_scenario
+from app.crowdguard.live_monitor import LiveMonitor, site_geometry
+from app.crowdguard.site_model import LiveCalibration, SiteModel
 from app.crowdguard.venue import Venue, load_venue
 from app.db.models import utcnow_iso
 from app.db.store import canonical_json
@@ -133,6 +136,48 @@ class ExplainInput(BaseModel):
     audience: Literal["analyst", "executive", "public"] = "executive"
 
 
+class LiveSourceSpec(BaseModel):
+    kind: Literal["webcam", "stream", "file", "synthetic"]
+    index: int = Field(0, ge=0, le=16)
+    url: str | None = Field(None, max_length=1000)
+    document_id: str | None = None
+    scenario: Literal["plaza_normal", "bottleneck", "counterflow", "surge_gate"] = "plaza_normal"
+    width: int = Field(1280, ge=320, le=3840)
+    height: int = Field(720, ge=240, le=2160)
+
+
+class LiveStartInput(BaseModel):
+    source: LiveSourceSpec
+    max_fps: float = Field(12.0, ge=1, le=30, description="Upper bound on analysed frames per second")
+
+
+class LiveCalibrateInput(BaseModel):
+    image_points: list[tuple[float, float]] = Field(..., min_length=4, max_length=4, description="TL, TR, BR, BL in source pixels")
+    width_m: float | None = Field(None, gt=0.5, le=500, description="Measured width of the marked floor rectangle")
+    height_m: float | None = Field(None, gt=0.5, le=500, description="Measured depth of the marked floor rectangle")
+    confirmed: bool = Field(False, description="True only when the dimensions were measured on the ground")
+
+
+class LiveOriginInput(BaseModel):
+    mode: Literal["auto", "zone", "point"] = "auto"
+    zone_id: str | None = None
+    x: float | None = None
+    y: float | None = None
+
+
+class LivePortalInput(BaseModel):
+    portal_id: str
+    available: bool
+
+
+class CameraDiscoveryInput(BaseModel):
+    max_index: int = Field(3, ge=0, le=10)
+
+
+class AlertListInput(BaseModel):
+    limit: int = Field(100, ge=1, le=300)
+
+
 class IncidentOpenInput(BaseModel):
     title: str = Field(..., min_length=3, max_length=255)
     zone_id: str | None = None
@@ -185,6 +230,8 @@ class CrowdEngine(BaseEngine):
         self._vision_lock = threading.Lock()
         self.vision_calibration = None
         self.vision_calibration_source = "default preset"
+        # Real-time monitoring (camera / stream / recording / simulation → map, over WebSocket).
+        self.live = LiveMonitor(store)
 
     # ---- helpers -------------------------------------------------------------
     def health(self) -> dict[str, Any]:
@@ -524,6 +571,104 @@ class CrowdEngine(BaseEngine):
                                 "label": "SYNTHETIC: simulated pedestrians with ground-truth boxes (no camera, no detector)",
                                 "calibration_source": self.vision_calibration_source, "fps": p.fps},
                         warnings=["Synthetic VCIE scenario: not camera data."])
+
+    # ---- real-time monitoring ---------------------------------------------------
+    def _source_key(self, spec: LiveSourceSpec) -> str:
+        return {"webcam": f"webcam:{spec.index}", "stream": f"stream:{spec.url}", "file": f"file:{spec.document_id}",
+                "synthetic": "synthetic"}[spec.kind]
+
+    @operation("live_cameras", CameraDiscoveryInput, description="Discover local cameras (index, resolution, availability)")
+    def op_live_cameras(self, data: CameraDiscoveryInput, ctx: ExecutionContext) -> OpResult:
+        running = self.live.source_key or ""
+        skip = {int(running.split(":")[1])} if running.startswith("webcam:") else set()
+        cams = discover_cameras(data.max_index, skip=skip)
+        warn = [] if any(c["status"] == "available" or c["status"] == "in_use_by_crowdguard" for c in cams) else [
+            "No usable local camera found. Connect a webcam, or use a stream, a recording or the simulation."]
+        return OpResult(result={"cameras": cams}, warnings=warn)
+
+    @operation("live_status", EmptyInput, description="Live monitoring status, source, statistics and calibration")
+    def op_live_status(self, data: EmptyInput, ctx: ExecutionContext) -> OpResult:
+        import torch  # noqa: PLC0415 - reported so operators know whether a GPU is in use
+
+        det, det_status = get_detector()
+        return OpResult(result={**self.live.describe(), "detector": {k: det_status.get(k) for k in ("backend", "verified", "model", "weights_path")},
+                                "device": "cuda" if torch.cuda.is_available() else "cpu"})
+
+    @operation("live_start", LiveStartInput, access="write", description="Start monitoring a camera, stream, recording or the simulation")
+    def op_live_start(self, data: LiveStartInput, ctx: ExecutionContext) -> OpResult:
+        try:
+            src = build_source(data.source.model_dump(), self.store)
+            info = self.live.start(src, self._source_key(data.source), max_fps=data.max_fps)
+        except SourceError as exc:
+            raise EngineError(exc.code, exc.message, 409 if exc.code in ("CAMERA_UNAVAILABLE", "NO_FRAMES") else 422) from exc
+        if self.store is not None:
+            self.store.audit("crowd", "monitoring_started", actor=ctx.actor, role=ctx.role,
+                             detail={"source": info["source"], "source_key": info["source_key"]})
+        return OpResult(result=info)
+
+    @operation("live_stop", EmptyInput, access="write", description="Stop monitoring")
+    def op_live_stop(self, data: EmptyInput, ctx: ExecutionContext) -> OpResult:
+        info = self.live.stop()
+        if self.store is not None:
+            self.store.audit("crowd", "monitoring_stopped", actor=ctx.actor, role=ctx.role, detail={})
+        return OpResult(result=info)
+
+    @operation("live_site", EmptyInput, description="The monitored site: size, grid, walkable area, obstacles, zones and exits")
+    def op_live_site(self, data: EmptyInput, ctx: ExecutionContext) -> OpResult:
+        return OpResult(result=site_geometry(self.live.site))
+
+    @operation("live_site_update", SiteModel, access="write", description="Replace the site layout (walkable area, obstacles, zones, exits)")
+    def op_live_site_update(self, data: SiteModel, ctx: ExecutionContext) -> OpResult:
+        try:
+            self.live.set_site(data)
+        except SourceError as exc:
+            raise EngineError(exc.code, exc.message, 422) from exc
+        if self.store is not None:
+            self.store.audit("crowd", "site_updated", actor=ctx.actor, role=ctx.role,
+                             detail={"zones": len(data.zones), "obstacles": len(data.obstacles), "portals": len(data.portals)})
+        return OpResult(result=site_geometry(self.live.site))
+
+    @operation("live_calibrate", LiveCalibrateInput, access="write", description="Calibrate the running camera to the site floor (four points)")
+    def op_live_calibrate(self, data: LiveCalibrateInput, ctx: ExecutionContext) -> OpResult:
+        src = self.live.source
+        if src is None:
+            raise EngineError("NOT_RUNNING", "Start a camera before calibrating it", 409)
+        if data.confirmed and not (data.width_m and data.height_m):
+            raise EngineError("DIMENSIONS_REQUIRED", "Give the measured width and depth to confirm a metric calibration", 422)
+        cal = LiveCalibration(image_points=data.image_points, frame_size=(src.width, src.height), confirmed=data.confirmed)
+        try:
+            info = self.live.set_calibration(cal, data.width_m, data.height_m)
+        except SourceError as exc:
+            raise EngineError(exc.code, exc.message, 422) from exc
+        if self.store is not None:
+            self.store.audit("crowd", "camera_calibrated", actor=ctx.actor, role=ctx.role,
+                             detail={"source": self.live.source_key, "confirmed": data.confirmed, "width_m": data.width_m, "height_m": data.height_m})
+        return OpResult(result=info)
+
+    @operation("live_origin", LiveOriginInput, access="write", description="Where route guidance starts: busiest zone, a zone or a point")
+    def op_live_origin(self, data: LiveOriginInput, ctx: ExecutionContext) -> OpResult:
+        if data.mode == "zone" and not any(z.id == data.zone_id for z in self.live.site.zones):
+            raise EngineError("UNKNOWN_ZONE", f"Unknown zone '{data.zone_id}'", 422)
+        if data.mode == "point" and (data.x is None or data.y is None):
+            raise EngineError("POINT_REQUIRED", "Give x and y in metres", 422)
+        self.live.set_origin(data.model_dump())
+        return OpResult(result={"origin": self.live.origin})
+
+    @operation("live_portal", LivePortalInput, access="write", description="Mark an exit or entrance available / unavailable (observed condition)")
+    def op_live_portal(self, data: LivePortalInput, ctx: ExecutionContext) -> OpResult:
+        try:
+            self.live.set_portal(data.portal_id, data.available)
+        except SourceError as exc:
+            raise EngineError(exc.code, exc.message, 404) from exc
+        if self.store is not None:
+            self.store.audit("crowd", "exit_status_reported", actor=ctx.actor, role=ctx.role, severity="warning" if not data.available else "info",
+                             detail={"portal": data.portal_id, "available": data.available})
+        return OpResult(result=site_geometry(self.live.site))
+
+    @operation("live_alerts", AlertListInput, description="Recent live alerts (active, cleared and one-shot events)")
+    def op_live_alerts(self, data: AlertListInput, ctx: ExecutionContext) -> OpResult:
+        return OpResult(result={"active": self.live.alerts.snapshot(50), "history": self.live.alerts.recent(data.limit),
+                                "suppressed_duplicates": self.live.alerts.suppressed})
 
     # ---- incidents -------------------------------------------------------------
     def _need_store(self):

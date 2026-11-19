@@ -1,5 +1,10 @@
 # OMNIFORGE Claude Code Frontend Handoff Guide
 
+> **Superseded.** This document describes the earlier multi-domain OMNIFORGE frontend (sections, domain workspace). The frontend on
+> `feature/crowdguard-realtime-ux` is the five-screen CROWDGUARD interface described in
+> [`CROWDGUARD_ARCHITECTURE.md`](CROWDGUARD_ARCHITECTURE.md#6a-frontend) and
+> [`CROWDGUARD_REALTIME_ARCHITECTURE.md`](CROWDGUARD_REALTIME_ARCHITECTURE.md). The backend engines and adapters it refers to are unchanged.
+
 > **Directive for Claude Code / Future AI Agents:**
 > When the official hackathon problem statement is announced, follow this guide to adapt and extend OMNIFORGE.
 > **DO NOT** rebuild the frontend shell, rewrite the backend, discard existing routes, or replace working components with static mockups.

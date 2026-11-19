@@ -31,11 +31,10 @@ Optional environment variables (see `.env.example`):
 
 ```mermaid
 flowchart LR
-  subgraph UI["React command centre (8 screens)"]
-    CC[Command Centre] --- LM[Live Monitoring] --- ZI[Zone Intelligence] --- CF[Forecasting]
-    MP[Movement Planner] --- IM[Incidents] --- AN[Analytics] --- AV[Audit & Verification]
+  subgraph UI["React, map-first (5 screens)"]
+    CC[Command centre] --- LC[Live camera] --- VM[Venue map] --- IH[Incidents] --- SE[Settings]
   end
-  UI -- "/api/crowdguard/*" --> R[Thin FastAPI routes]
+  UI -- "/api/crowdguard/* + WebSocket live/ws" --> R[Thin FastAPI routes]
   R --> REG{{"Engine registry<br/>policy gate · validation · audit"}}
   REG --> CROWD[crowd engine]
   CROWD -- "decision.evaluate_rules" --> DEC[decision]
@@ -177,14 +176,19 @@ from the synthetic scenario only and say nothing about accuracy on real cameras.
 
 ## 6a. Frontend
 
-React 19, Vite, Tailwind v4 and Recharts. Every screen is lazy-loaded. Navigation:
+React 19, Vite and Tailwind v4 (Recharts was removed). The app opens on the Command centre; there is no domain selector. Five screens,
+each lazy-loaded:
 
-* **CROWDGUARD**: Command Centre (map-centred), Live Monitoring (ingest a recording, camera zones, feed the venue), Virtual Heatmap
-  (camera, bird's-eye, heatmap, movement and digital twin side by side from one frame; calibration by clicking four ground points; synthetic
-  scenarios or recorded-job key frames), Zone Intelligence, Crowd Forecasting, Movement Planner, Incident Management.
-* **OMNIFORGE**: Overview, Domain Workspace, Data & Evidence, Run History, Analytics (crowd outcomes and platform telemetry as tabs).
-* **Governance**: Approvals, Audit & Verification (capability and incident verification, plus the hash-chained audit log as tabs).
-* **Engineering**: Engine Lab, Settings.
+* **Command centre**: the live top-down map (cell states, density heatmap, people, movement, route) with source, layers, zones and exits on
+  the left and area, alerts and the recommended route on the right.
+* **Live camera**: the analysed frame with boxes and foot points, four-click floor calibration with measured dimensions, a compact map and
+  the tracked-people table.
+* **Venue map**: the monitored-area editor (walkable outline, obstacles, zones, exits, grid and thresholds) and, on a second tab, the
+  zone-level simulated festival with forecast and relief recommendations.
+* **Incidents**: incidents opened by people from live alerts, their hash-chained lifecycle, and audit-chain status.
+* **Settings**: theme, operator identity, detector and device, and how to read the numbers.
+
+The live pipeline, transport and map are described in [`CROWDGUARD_REALTIME_ARCHITECTURE.md`](CROWDGUARD_REALTIME_ARCHITECTURE.md).
 
 **Themes.** `ThemeProvider` (light, dark or system) persists the preference and follows the OS in system mode. An inline script applies
 the theme class before first paint, so there is no flash. All colours are CSS tokens on `:root` / `:root.dark`, and `dark:` utilities follow the

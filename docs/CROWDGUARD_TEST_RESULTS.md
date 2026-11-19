@@ -1,22 +1,24 @@
 # CROWDGUARD — automated test results
 
-Recorded on the build machine on 2026-11-19 (Windows 11, Python 3.12.0, Node v26.7.0). These are copied from actual runs
-on branch `integration/omniforge-final` (OMNIFORGE + frontend + CROWDGUARD + VCIE); nothing was edited by hand. Re-run them with the commands shown.
+Recorded on the build machine on 2026-11-19 (Windows 11, Python 3.12.0, Node v26.7.0). These are copied from actual runs; nothing was
+edited by hand. Re-run them with the commands shown. The full-suite block and the real-time sections are from branch
+`feature/crowdguard-realtime-ux`; the per-file verbose listings further down were recorded earlier on `integration/omniforge-final`.
 
 ## Backend: full suite
 
 ```
 $ cd backend && python -m pytest -o addopts="" -q
-121 passed
+145 passed
 
-tests/test_ai.py               10 passed
-tests/test_api.py              25 passed   (incl. the parametrised pipeline test for all 10 adapters)
-tests/test_crowdguard.py       23 passed
-tests/test_crowdguard_vcie.py  19 passed   (12 VCIE tests + 7 integration tests)
-tests/test_crypto.py           18 passed
-tests/test_decision.py          5 passed
-tests/test_ml_data.py          13 passed
-tests/test_security.py          8 passed
+tests/test_ai.py                10 passed
+tests/test_api.py               25 passed   (incl. the parametrised pipeline test for all 10 adapters)
+tests/test_crowdguard.py        23 passed
+tests/test_crowdguard_live.py   24 passed   (real-time pipeline, new on this branch)
+tests/test_crowdguard_vcie.py   19 passed   (12 VCIE tests + 7 integration tests)
+tests/test_crypto.py            18 passed
+tests/test_decision.py           5 passed
+tests/test_ml_data.py           13 passed
+tests/test_security.py           8 passed
 ```
 
 Changes to existing tests (nothing was deleted or loosened):
@@ -136,3 +138,80 @@ The backend ran in single-server mode (`uvicorn app.main:app --port 8010`, servi
 Command Centre, Zone Intelligence, Crowd Forecasting, Movement Planner, Analytics and Audit & Verification, and each one rendered backend data.
 `/api/crowdguard/status` reported `yolo` (verified), `bytetrack (ultralytics)` and AI `local-fallback`.
 The upload → job → results flow on the Live Monitoring screen is covered by the API test above. It was not clicked through in a browser.
+
+## Backend: real-time pipeline tests (`tests/test_crowdguard_live.py`, verbose)
+
+Cameras are replaced by a fake `cv2.VideoCapture` or a fake source in these tests, except `test_yolo_initialises_once_and_detects_people`,
+which loads the real local YOLO weights.
+
+```
+$ cd backend && python -m pytest -o addopts="" -v tests/test_crowdguard_live.py
+tests/test_crowdguard_live.py::test_camera_discovery_reports_available_busy_and_missing PASSED
+tests/test_crowdguard_live.py::test_webcam_errors_are_specific PASSED
+tests/test_crowdguard_live.py::test_webcam_connects_and_reads PASSED
+tests/test_crowdguard_live.py::test_stream_url_validation_hides_credentials PASSED
+tests/test_crowdguard_live.py::test_yolo_initialises_once_and_detects_people PASSED
+tests/test_crowdguard_live.py::test_ground_projection_round_trip_and_horizon PASSED
+tests/test_crowdguard_live.py::test_foot_uncertainty_grows_with_distance PASSED
+tests/test_crowdguard_live.py::test_kde_integrates_to_people_count PASSED
+tests/test_crowdguard_live.py::test_empty_space_states_and_unknown_when_feed_down PASSED
+tests/test_crowdguard_live.py::test_walkable_area_and_restricted_zones_are_blocked PASSED
+tests/test_crowdguard_live.py::test_route_avoids_congestion_and_obstacles PASSED
+tests/test_crowdguard_live.py::test_unavailable_exit_never_recommended_and_feed_down_gives_no_route PASSED
+tests/test_crowdguard_live.py::test_guidance_hysteresis PASSED
+tests/test_crowdguard_live.py::test_alert_dedup_escalation_and_cooldown PASSED
+tests/test_crowdguard_live.py::test_latest_frame_wins_no_backlog PASSED
+tests/test_crowdguard_live.py::test_identity_persists_across_frames PASSED
+tests/test_crowdguard_live.py::test_disconnect_marks_area_unknown_and_reconnects PASSED
+tests/test_crowdguard_live.py::test_live_api_and_websocket_stream PASSED
+tests/test_crowdguard_live.py::test_calibration_api_metric_requires_measurements PASSED
+tests/test_crowdguard_live.py::test_default_site_matches_digital_twin PASSED
+tests/test_crowdguard_live.py::test_sources_label_recordings_and_simulation_honestly PASSED
+tests/test_crowdguard_live.py::test_switching_source_never_serves_the_previous_picture PASSED
+tests/test_crowdguard_live.py::test_slow_camera_raises_an_alert PASSED
+tests/test_crowdguard_live.py::test_camera_discovery_after_stop_does_not_report_in_use PASSED
+============================= 24 passed in 15.70s =============================
+```
+
+## Real-time pipeline measurements
+
+Measured through the running server (`uvicorn app.main:app --port 8010`), the REST API and the WebSocket, on a 13th Gen Intel Core
+i7-13700HX laptop, CPU inference (no CUDA), with the laptop's webcam. The script started each source, discarded the first 3 s, and then
+collected every snapshot. Webcam frames were not viewed (privacy), so detection counts are not accuracy figures. Interpretation:
+[`CROWDGUARD_REALTIME_ARCHITECTURE.md`](CROWDGUARD_REALTIME_ARCHITECTURE.md#9-measured-performance).
+
+```
+machine: Intel64 Family 6 Model 191 Stepping 2, GenuineIntel | device: cpu | detector: yolo yolov8n.pt
+== Webcam: kind=live_camera live=True frame 1280x720
+   analysed 12.0 fps (cap 12.0); camera delivers 30.0 fps; frames skipped to stay current 456
+   per-frame processing median 26 ms, p95 34 ms; capture->result (server) median 44 ms
+   capture->browser-side client median 46 ms, p95 62 ms, max 75 ms (265 snapshots)
+   detections/frame median 4 (min 1, max 7); confidence median 0.54
+   unique track ids 24; longest-lived (snapshots out of 265): [(1, 245), (14, 98), (23, 98)]
+   unit: relative (1.0 = congestion threshold); calibration: assumed (not measured); alerts seen: none
+== Recording: kind=recorded_video live=False frame 640x678
+   analysed 12.0 fps (cap 12.0); camera delivers 15.2 fps; frames skipped to stay current 44
+   per-frame processing median 33 ms, p95 50 ms; capture->result (server) median 70 ms
+   capture->browser-side client median 71 ms, p95 101 ms, max 117 ms (145 snapshots)
+   detections/frame median 3 (min 2, max 5); confidence median 0.81
+   unique track ids 13; longest-lived (snapshots out of 145): [(8, 119), (1, 93), (12, 59)]
+   unit: relative (1.0 = congestion threshold); calibration: assumed (not measured); alerts seen: none
+== Simulation: kind=synthetic live=False frame 1280x720
+   analysed 9.9 fps (cap 12.0); camera delivers 9.9 fps; frames skipped to stay current 0
+   per-frame processing median 19 ms, p95 24 ms; capture->result (server) median 20 ms
+   capture->browser-side client median 24 ms, p95 34 ms, max 36 ms (120 snapshots)
+   detections/frame median 60.0 (min 60, max 60); confidence median 0.92
+   unique track ids 60; longest-lived (snapshots out of 120): [(1, 120), (2, 120), (3, 120)]
+   unit: persons/m²; calibration: simulated geometry (exact); alerts seen: ['corridor_congestion', 'flow_slowed', 'zone_capacity_exceeded', 'zone_near_capacity']
+stop idle
+start True
+== Webcam uncapped (max_fps 30): analysed median 29.2 fps, min 28.4; per-frame median 29 ms; capture->client median 46 ms p95 61 ms; skipped 17
+stop idle
+```
+
+Also observed during testing:
+
+* While a second process held the same webcam open, Windows let CROWDGUARD open it too, but it received about 1 frame per second
+  (status: `running`, fps 1.0, 32 frames in about 30 s). This is why the `camera_slow` alert exists.
+* Camera disconnection was tested with a fake source, not by unplugging a camera.
+

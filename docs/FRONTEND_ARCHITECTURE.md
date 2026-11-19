@@ -1,5 +1,10 @@
 # OMNIFORGE Frontend Architecture
 
+> **Superseded.** This document describes the earlier multi-domain OMNIFORGE frontend (sections, domain workspace). The frontend on
+> `feature/crowdguard-realtime-ux` is the five-screen CROWDGUARD interface described in
+> [`CROWDGUARD_ARCHITECTURE.md`](CROWDGUARD_ARCHITECTURE.md#6a-frontend) and
+> [`CROWDGUARD_REALTIME_ARCHITECTURE.md`](CROWDGUARD_REALTIME_ARCHITECTURE.md). The backend engines and adapters it refers to are unchanged.
+
 This document outlines the architectural principles, component hierarchies, routing patterns, design token systems, and extension points of the **PROJECT OMNIFORGE** frontend.
 
 ---

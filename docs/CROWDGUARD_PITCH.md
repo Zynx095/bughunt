@@ -15,9 +15,10 @@ into another crowded zone, and it checks destination capacity against the *upper
 alert, sends stewards to clear it, and re-plans egress to the other exits. A camera drops out, and the Food Court shows as *unknown*, not empty,
 so the planner stops sending people there until someone checks.
 
-**(1:15) Real computer vision.** On the Live Monitoring screen, YOLO detects people in an uploaded video. ByteTrack follows each person across frames
-so nobody is counted twice. Each person's foot point places them in a polygon zone, and the tracks give direction and speed. We show three numbers
-side by side: what the detector saw, the occlusion-corrected estimate with its interval, and the number of unique people.
+**(1:15) Real computer vision, live.** Point a webcam at the floor. YOLO finds each person, ByteTrack keeps their number from frame to
+frame, and the bottom of each box is projected through a floor calibration onto the top-down map, where the density, the free floor and the
+route update about twelve times a second. What the camera cannot see is hatched grey, never shown as empty. Densities are in people per
+square metre only after someone has measured the floor; until then they are a relative index, and the screen says so.
 
 **(1:35) Why it can be trusted.** First, every number is labelled as observed, estimate or synthetic, and missing data is never treated as zero.
 Second, the AI only advises. Alert rules are deterministic, a human makes every decision, closing an incident needs a second person, and no software

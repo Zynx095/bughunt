@@ -6,7 +6,7 @@ import {
   RotateCcw,
   Target,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { getDomainMeta } from '../lib/domainConfig'
 import type { DomainInfo, RunRecord } from '../lib/types'
@@ -45,12 +45,7 @@ export function DynamicWorkspace({
   const [runError, setRunError] = useState<string | null>(null)
   const [isLatest, setIsLatest] = useState(Boolean(initialRun))
 
-  // Sync sample input when domain changes
-  useEffect(() => {
-    if (domain.sample_input) {
-      setText(JSON.stringify(domain.sample_input, null, 2))
-    }
-  }, [domain.id, domain.sample_input])
+  // Text initializes with domain sample input on mount (keyed by domain.id in caller)
 
   const meta = useMemo(() => getDomainMeta(domain.id, domain.name, domain.color), [domain])
 

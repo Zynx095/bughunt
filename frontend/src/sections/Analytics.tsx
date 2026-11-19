@@ -1,4 +1,4 @@
-import { BarChart3, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 
 import { AnalyticsPanel } from '../components/AnalyticsPanel'
 import { Button, Empty, ErrorBox, PageHeader, Spinner } from '../components/ui'

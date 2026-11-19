@@ -1,17 +1,8 @@
 import {
-  Check,
-  CheckCircle2,
-  Cpu,
-  Database,
   Moon,
   Radio,
-  RefreshCw,
-  Shield,
-  ShieldAlert,
   Sun,
   Tv,
-  User,
-  Zap,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 

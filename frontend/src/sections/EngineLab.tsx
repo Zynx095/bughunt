@@ -1,21 +1,10 @@
 import {
-  Braces,
   Check,
   Clock,
-  Code2,
   Copy,
-  Cpu,
-  Database,
-  ExternalLink,
-  Filter,
-  KeyRound,
   Lock,
   Play,
-  RotateCcw,
   Search,
-  ShieldAlert,
-  ShieldCheck,
-  Sparkles,
   Terminal,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'

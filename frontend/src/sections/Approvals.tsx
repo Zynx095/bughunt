@@ -1,4 +1,4 @@
-import { Check, CheckCircle2, ClipboardCheck, Clock, ExternalLink, ShieldAlert, User, X, XCircle } from 'lucide-react'
+import { Check, ClipboardCheck, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { JSONInspector } from '../components/JSONInspector'

@@ -1,11 +1,11 @@
-import { Check, Copy, ExternalLink, Filter, Link2, RotateCcw, Search, ShieldCheck, ShieldX } from 'lucide-react'
+import { Copy, RotateCcw, Search, ShieldCheck, ShieldX } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { JSONInspector } from '../components/JSONInspector'
 import { DataTable } from '../components/table'
 import { Badge, Button, Card, ErrorBox, PageHeader, Spinner, Tabs } from '../components/ui'
 import { cx } from '../lib/cx'
-import { fmtMs, fmtTime, short } from '../lib/format'
+import { fmtTime, short } from '../lib/format'
 import { useApi } from '../lib/hooks'
 import type { AuditEvent, ChainStatus } from '../lib/types'
 
@@ -209,7 +209,7 @@ export function AuditPage() {
                             title="Copy SHA-256 Hash"
                           >
                             {copiedHash === `hash-${e.id}` ? (
-                              <Check className="size-3 text-good-ink" />
+                              <span className="text-good-ink text-[10px]">Copied</span>
                             ) : (
                               <Copy className="size-3" />
                             )}

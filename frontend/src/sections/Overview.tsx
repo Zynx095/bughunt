@@ -1,27 +1,17 @@
 import {
-  Activity,
-  AlertTriangle,
   ArrowRight,
-  CheckCircle2,
   Cpu,
   Database,
-  ExternalLink,
-  Layers,
   Link2,
-  Lock,
-  Play,
   RotateCcw,
-  ShieldAlert,
   ShieldCheck,
   ShieldX,
-  Sparkles,
-  Zap,
 } from 'lucide-react'
 import { useState } from 'react'
 
 import { DomainBadgeIcon } from '../components/domainIcon'
 import { EngineStatusCard } from '../components/EngineStatusCard'
-import { Badge, Button, Card, Empty, ErrorBox, PageHeader, Spinner, Stat, StatusBadge } from '../components/ui'
+import { Badge, Button, Card, Empty, ErrorBox, Spinner, Stat, StatusBadge } from '../components/ui'
 import { useApp } from '../context'
 import { cx } from '../lib/cx'
 import { fmtMs, fmtTime, short } from '../lib/format'

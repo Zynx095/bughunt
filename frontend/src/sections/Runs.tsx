@@ -1,10 +1,10 @@
-import { ArrowLeft, Clock, Filter, Layers, Play, Search, User } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { JSONInspector } from '../components/JSONInspector'
 import { StepList, StepOutputs } from '../components/presentation'
 import { ResultsRenderer } from '../components/ResultsRenderer'
-import { Badge, Button, Card, Disclosure, Empty, ErrorBox, PageHeader, Spinner, StatusBadge } from '../components/ui'
+import { Button, Card, Disclosure, Empty, ErrorBox, PageHeader, Spinner, StatusBadge } from '../components/ui'
 import { useApp } from '../context'
 import { cx } from '../lib/cx'
 import { fmtMs, fmtTime } from '../lib/format'

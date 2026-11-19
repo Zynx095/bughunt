@@ -20,3 +20,4 @@ opencv-python>=4.9
 scipy>=1.11            # Hungarian assignment for the fallback tracker
 ultralytics>=8.3       # optional: YOLO + ByteTrack; needs a local weights file (never downloaded)
 lap>=0.5               # required by ultralytics' ByteTrack matcher
+websockets>=12         # uvicorn needs it to serve the live WebSocket (/api/crowdguard/live/ws)

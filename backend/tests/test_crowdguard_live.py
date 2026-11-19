@@ -416,3 +416,18 @@ def test_slow_camera_raises_an_alert():
         assert _wait(lambda: any(a["kind"] == "camera_slow" for a in mon.alerts.recent()), timeout=12)
     finally:
         mon.stop()
+
+
+
+def test_camera_discovery_after_stop_does_not_report_in_use(client, monkeypatch):
+    from app.engines.crowd import engine as crowd_engine
+    seen = []
+    monkeypatch.setattr(crowd_engine, "discover_cameras", lambda max_index, skip=frozenset(): seen.append(set(skip)) or [])
+    mon = client.app.state.services.registry.get("crowd").live
+    mon.start(FakeCam(fps=30), "webcam:0")
+    try:
+        client.get("/api/crowdguard/live/cameras")
+    finally:
+        client.post("/api/crowdguard/live/stop")
+    client.get("/api/crowdguard/live/cameras")
+    assert seen == [{0}, set()]  # held while running; free again after the stop

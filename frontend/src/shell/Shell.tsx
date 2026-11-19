@@ -80,9 +80,10 @@ export function TopBar({ screen, onNavigate }: { screen: ScreenId; onNavigate: (
 
 export function StatusBar() {
   const { snapshot, status, connection, lastMessageAt } = useLive()
-  const s = snapshot?.stats ?? status?.stats
   const src = snapshot?.source ?? status?.source
   const st = snapshot?.status ?? status?.status
+  // After a stop the server keeps the last run's counters; they are not current, so show none.
+  const s = st && st !== 'idle' ? (snapshot?.stats ?? status?.stats) : undefined
   const health = !st || st === 'idle' ? 'No source' : st === 'running' ? (snapshot?.detection_failed ? 'Detection failing' : 'Healthy')
     : st === 'stale' || st === 'disconnected' ? 'No frames' : st
   const [now, setNow] = useState(0)

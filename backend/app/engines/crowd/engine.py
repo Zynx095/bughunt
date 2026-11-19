@@ -579,7 +579,8 @@ class CrowdEngine(BaseEngine):
 
     @operation("live_cameras", CameraDiscoveryInput, description="Discover local cameras (index, resolution, availability)")
     def op_live_cameras(self, data: CameraDiscoveryInput, ctx: ExecutionContext) -> OpResult:
-        running = self.live.source_key or ""
+        # Only a source that is running now holds the device; the key alone outlives a stop.
+        running = (self.live.source_key or "") if self.live.source is not None else ""
         skip = {int(running.split(":")[1])} if running.startswith("webcam:") else set()
         cams = discover_cameras(data.max_index, skip=skip)
         warn = [] if any(c["status"] == "available" or c["status"] == "in_use_by_crowdguard" for c in cams) else [
